@@ -5,9 +5,8 @@ use crate::helpers::{
 };
 use crate::msg::{ExecuteMsg, GovTokenMsg, InstantiateMsg, ProposeMsg, QueryMsg, VoteMsg};
 use crate::query::{
-    ConfigResponse, Cw20BalancesResponse, ProposalListResponse, ProposalResponse,
-    ThresholdResponse, TokenListResponse, VoteInfo, VoteListResponse, VoteResponse,
-    VoteTallyResponse, VoterResponse,
+    BalancesResponse, ConfigResponse, ProposalListResponse, ProposalResponse, ThresholdResponse,
+    TokenListResponse, VoteInfo, VoteListResponse, VoteResponse, VoteTallyResponse, VoterResponse,
 };
 use crate::state::{
     next_id, Ballot, Config, Proposal, Votes, BALLOTS, CONFIG, DAO_PAUSED, GOV_TOKEN, PROPOSALS,
@@ -16,17 +15,17 @@ use crate::state::{
 };
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Binary, CosmosMsg, Decimal, Deps, DepsMut, Empty, Env,
-    MessageInfo, Order, Reply, Response, StdResult, SubMsg, Uint128, WasmMsg,
+    MessageInfo, Order, Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw20::{
-    BalanceResponse, Cw20Coin, Cw20CoinVerified, Cw20Contract, Cw20QueryMsg, MinterResponse,
+    Balance, BalanceResponse, Cw20Coin, Cw20CoinVerified, Cw20Contract, Cw20QueryMsg, Denom,
+    MinterResponse,
 };
 use cw3::{Status, Vote};
 use cw_storage_plus::Bound;
-use cw_utils::{maybe_addr, parse_reply_instantiate_data, Expiration};
+use cw_utils::{maybe_addr, parse_reply_instantiate_data, Expiration, NativeBalance};
 use std::cmp::Ordering;
-use std::string::FromUtf8Error;
 
 // Version info for migration info
 pub const CONTRACT_NAME: &str = "crates.io:cw3_dao";
@@ -128,10 +127,10 @@ pub fn instantiate(
             );
 
             // Add cw20 token to map of TREASURY TOKENS
-            TREASURY_TOKENS.save(deps.storage, &cw20_addr.addr(), &Empty {})?;
+            TREASURY_TOKENS.save(deps.storage, ("cw20", cw20_addr.addr().as_str()), &Empty {})?;
 
             // Save gov token
-            GOV_TOKEN.save(deps.storage, &cw20_addr.addr())?;
+            GOV_TOKEN.save(deps.storage, &Denom::Cw20(cw20_addr.addr()))?;
 
             // Instantiate staking contract with DAO as admin
             let msg = WasmMsg::Instantiate {
@@ -139,10 +138,39 @@ pub fn instantiate(
                 funds: vec![],
                 admin: Some(env.contract.address.to_string()),
                 label,
-                msg: to_binary(&stake_cw20::msg::InstantiateMsg {
+                msg: to_binary(&stake::msg::InstantiateMsg {
                     admin: Some(env.contract.address),
+                    asset: Denom::Cw20(cw20_addr.addr()),
                     unstaking_duration,
-                    token_address: cw20_addr.addr(),
+                })?,
+            };
+
+            let msg = SubMsg::reply_on_success(msg, INSTANTIATE_STAKING_CONTRACT_REPLY_ID);
+
+            msgs.append(&mut vec![msg]);
+        }
+        GovTokenMsg::UseNative {
+            denom,
+            label,
+            stake_contract_code_id,
+            unstaking_duration,
+        } => {
+            // Add native token to map of TREASURY TOKENS
+            TREASURY_TOKENS.save(deps.storage, ("native", denom.as_str()), &Empty {})?;
+
+            // Save gov token
+            GOV_TOKEN.save(deps.storage, &Denom::Native(denom.clone()))?;
+
+            // Instantiate staking contract with DAO as admin
+            let msg = WasmMsg::Instantiate {
+                code_id: stake_contract_code_id,
+                funds: vec![],
+                admin: Some(env.contract.address.to_string()),
+                label,
+                msg: to_binary(&stake::msg::InstantiateMsg {
+                    admin: Some(env.contract.address),
+                    asset: Denom::Native(denom),
+                    unstaking_duration,
                 })?,
             };
 
@@ -176,8 +204,8 @@ pub fn execute(
         ExecuteMsg::Close { proposal_id } => execute_close(deps, env, info, proposal_id),
         ExecuteMsg::PauseDAO { expiration } => execute_pause_dao(deps, env, info, expiration),
         ExecuteMsg::UpdateConfig(config) => execute_update_config(deps, env, info, config),
-        ExecuteMsg::UpdateCw20TokenList { to_add, to_remove } => {
-            execute_update_cw20_token_list(deps, env, info, to_add, to_remove)
+        ExecuteMsg::UpdateTokenList { to_add, to_remove } => {
+            execute_update_token_list(deps, env, info, to_add, to_remove)
         }
         ExecuteMsg::UpdateStakingContract {
             new_staking_contract,
@@ -248,14 +276,35 @@ pub fn execute_propose(
     let id = next_id(deps.storage)?;
     PROPOSALS.save(deps.storage, id, &prop)?;
 
-    let deposit_msg = get_deposit_message(&env, &info, &cfg.proposal_deposit, &gov_token)?;
-
-    Ok(Response::new()
-        .add_messages(deposit_msg)
+    let mut resp = Response::new()
         .add_attribute("action", "propose")
-        .add_attribute("sender", info.sender)
+        .add_attribute("sender", info.sender.clone())
         .add_attribute("proposal_id", id.to_string())
-        .add_attribute("status", format!("{:?}", prop.status)))
+        .add_attribute("status", format!("{:?}", prop.status));
+
+    match gov_token {
+        Denom::Native(native_denom) => {
+            let received = info
+                .funds
+                .iter()
+                .find(|t| t.denom == native_denom)
+                .map(|t| t.amount)
+                .unwrap_or_default();
+            if received.ne(&cfg.proposal_deposit) {
+                return Err(ContractError::Unauthorized {});
+            }
+        }
+        Denom::Cw20(cw20_addr) => {
+            resp = resp.add_messages(get_deposit_message(
+                &env,
+                &info,
+                &cfg.proposal_deposit,
+                &cw20_addr,
+            )?);
+        }
+    }
+
+    Ok(resp)
 }
 
 pub fn execute_vote(
@@ -458,12 +507,12 @@ pub fn execute_update_staking_contract(
         .add_attribute("new_staking_contract", new_staking_contract))
 }
 
-pub fn execute_update_cw20_token_list(
+pub fn execute_update_token_list(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    to_add: Vec<Addr>,
-    to_remove: Vec<Addr>,
+    to_add: Vec<Denom>,
+    to_remove: Vec<Denom>,
 ) -> Result<Response<Empty>, ContractError> {
     // Only contract can call this method
     if env.contract.address != info.sender {
@@ -480,11 +529,25 @@ pub fn execute_update_cw20_token_list(
     }
 
     for token in &to_add {
-        TREASURY_TOKENS.save(deps.storage, token, &Empty {})?;
+        match token {
+            Denom::Native(native_denom) => {
+                TREASURY_TOKENS.save(deps.storage, ("native", native_denom.as_str()), &Empty {})?
+            }
+            Denom::Cw20(cw20_addr) => {
+                TREASURY_TOKENS.save(deps.storage, ("cw20", cw20_addr.as_str()), &Empty {})?
+            }
+        }
     }
 
     for token in &to_remove {
-        TREASURY_TOKENS.remove(deps.storage, token);
+        match token {
+            Denom::Native(native_denom) => {
+                TREASURY_TOKENS.remove(deps.storage, ("native", native_denom.as_str()))
+            }
+            Denom::Cw20(cw20_addr) => {
+                TREASURY_TOKENS.remove(deps.storage, ("cw20", cw20_addr.as_str()))
+            }
+        }
     }
 
     Ok(Response::new().add_attribute("action", "update_cw20_token_list"))
@@ -514,10 +577,12 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Tally { proposal_id } => {
             to_binary(&query_proposal_tally(deps, env, proposal_id)?)
         }
-        QueryMsg::Cw20Balances { start_after, limit } => {
-            to_binary(&query_cw20_balances(deps, env, start_after, limit)?)
-        }
-        QueryMsg::Cw20TokenList {} => to_binary(&query_cw20_token_list(deps)),
+        QueryMsg::Balances {
+            asset_type,
+            start_after,
+            limit,
+        } => to_binary(&query_balances(deps, env, asset_type, start_after, limit)?),
+        QueryMsg::TokenList {} => to_binary(&query_token_list(deps)),
     }
 }
 
@@ -576,40 +641,93 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     })
 }
 
-fn query_cw20_token_list(deps: Deps) -> TokenListResponse {
-    let token_list: Result<Vec<Addr>, FromUtf8Error> = TREASURY_TOKENS
-        .keys_raw(deps.storage, None, None, Order::Ascending)
-        .map(|token| String::from_utf8(token).map(Addr::unchecked))
+fn query_token_list(deps: Deps) -> TokenListResponse {
+    let token_list: Vec<Denom> = TREASURY_TOKENS
+        .keys(deps.storage, None, None, Order::Ascending)
+        .map(|item| -> Denom {
+            let (k1, k2) = item.unwrap();
+            match k1.as_str() {
+                "native" => Denom::Native(k2),
+                "cw20" => Denom::Cw20(deps.api.addr_validate(k2.as_str()).unwrap()),
+                _ => panic!("invalid asset type {}", k1),
+            }
+        })
         .collect();
 
-    match token_list {
-        Ok(token_list) => TokenListResponse { token_list },
-        Err(_) => TokenListResponse { token_list: vec![] },
-    }
+    TokenListResponse { token_list }
 }
 
-fn query_cw20_balances(
+fn query_balances(
     deps: Deps,
     env: Env,
+    asset_type: Option<Denom>,
     start_after: Option<String>,
     limit: Option<u32>,
-) -> StdResult<Cw20BalancesResponse> {
+) -> StdResult<BalancesResponse> {
     let limit = get_and_check_limit(limit, MAX_LIMIT, DEFAULT_LIMIT)? as usize;
 
-    let start_addr = maybe_addr(deps.api, start_after)?;
-    let start = start_addr.map(|addr| Bound::exclusive(addr.as_ref()));
+    // let start_addr = maybe_addr(deps.api, start_after)?;
+    // let start = start_addr.map(|addr| Bound::exclusive(addr.as_ref()));
 
-    let cw20_balances: Vec<Cw20CoinVerified> = TREASURY_TOKENS
-        .keys_raw(deps.storage, start, None, Order::Ascending)
-        .take(limit)
-        .map(|cw20_contract_address| {
-            let cw20_contract_address = String::from_utf8(cw20_contract_address)
-                .map(Addr::unchecked)
+    let prefix = asset_type.map(|x| match x {
+        Denom::Native(_) => "native",
+        Denom::Cw20(_) => {
+            // validate
+            if let Some(cw20_addr) = start_after.clone() {
+                deps.api.addr_validate(cw20_addr.as_str()).unwrap();
+            }
+            "cw20"
+        }
+    });
+
+    let balances: Vec<Balance> = match prefix {
+        Some(prefix) => TREASURY_TOKENS
+            .prefix(prefix)
+            .keys(
+                deps.storage,
+                start_after.map(|x| Bound::exclusive(x.as_str().as_bytes())),
+                None,
+                Order::Ascending,
+            )
+            .take(limit)
+            .map(|item| -> Balance {
+                let v = item.unwrap();
+                query_balance_with_asset_type(deps, env.clone(), prefix, v.as_str()).unwrap()
+            })
+            .collect(),
+        None => TREASURY_TOKENS
+            .keys(deps.storage, None, None, Order::Ascending)
+            .take(limit)
+            .map(|item| -> Balance {
+                let (k1, k2) = item.unwrap();
+                query_balance_with_asset_type(deps, env.clone(), k1.as_str(), k2.as_str()).unwrap()
+            })
+            .collect(),
+    };
+
+    Ok(BalancesResponse { balances })
+}
+
+fn query_balance_with_asset_type(
+    deps: Deps,
+    env: Env,
+    asset_type: &str,
+    value: &str,
+) -> StdResult<Balance> {
+    match asset_type {
+        "native" => {
+            let balance_resp = deps
+                .querier
+                .query_balance(env.contract.address, value)
                 .unwrap();
-            let balance: BalanceResponse = deps
+
+            Ok(Balance::Native(NativeBalance(vec![balance_resp])))
+        }
+        "cw20" => {
+            let balance_resp: BalanceResponse = deps
                 .querier
                 .query_wasm_smart(
-                    &cw20_contract_address,
+                    value,
                     &Cw20QueryMsg::Balance {
                         address: env.contract.address.to_string(),
                     },
@@ -618,14 +736,16 @@ fn query_cw20_balances(
                     balance: Uint128::zero(),
                 });
 
-            Cw20CoinVerified {
-                address: cw20_contract_address,
-                amount: balance.balance,
-            }
-        })
-        .collect();
-
-    Ok(Cw20BalancesResponse { cw20_balances })
+            Ok(Balance::Cw20(Cw20CoinVerified {
+                address: Addr::unchecked(value),
+                amount: balance_resp.balance,
+            }))
+        }
+        _ => Err(StdError::generic_err(format!(
+            "invalid asset type {}",
+            asset_type
+        ))),
+    }
 }
 
 fn query_list_proposals(
@@ -726,10 +846,10 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
                     let cw20_addr = deps.api.addr_validate(&res.contract_address)?;
 
                     // Add cw20 token to map of TREASURY TOKENS
-                    TREASURY_TOKENS.save(deps.storage, &cw20_addr, &Empty {})?;
+                    TREASURY_TOKENS.save(deps.storage, ("cw20", cw20_addr.as_str()), &Empty {})?;
 
                     // Save gov token
-                    GOV_TOKEN.save(deps.storage, &cw20_addr)?;
+                    GOV_TOKEN.save(deps.storage, &Denom::Cw20(cw20_addr.clone()))?;
 
                     // Instantiate staking contract with DAO as admin
                     let code_id = STAKING_CONTRACT_CODE_ID.load(deps.storage)?;
@@ -740,10 +860,10 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
                         funds: vec![],
                         admin: Some(env.contract.address.to_string()),
                         label: env.contract.address.to_string(),
-                        msg: to_binary(&stake_cw20::msg::InstantiateMsg {
+                        msg: to_binary(&stake::msg::InstantiateMsg {
                             admin: Some(env.contract.address),
+                            asset: Denom::Cw20(cw20_addr),
                             unstaking_duration,
-                            token_address: cw20_addr,
                         })?,
                     };
                     let msg = SubMsg::reply_on_success(msg, INSTANTIATE_STAKING_CONTRACT_REPLY_ID);

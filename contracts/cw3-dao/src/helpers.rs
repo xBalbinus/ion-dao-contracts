@@ -1,10 +1,10 @@
 use cosmwasm_std::{
-    to_binary, Addr, BlockInfo, CosmosMsg, Deps, Env, MessageInfo, StdError, StdResult, Uint128,
-    WasmMsg,
+    coins, to_binary, Addr, BankMsg, BlockInfo, CosmosMsg, Deps, Env, MessageInfo, StdError,
+    StdResult, Uint128, WasmMsg,
 };
-use cw20::Cw20ExecuteMsg;
+use cw20::{Cw20ExecuteMsg, Denom};
 
-use stake_cw20::msg::{
+use stake::msg::{
     QueryMsg as StakingContractQueryMsg, StakedBalanceAtHeightResponse, TotalStakedAtHeightResponse,
 };
 
@@ -40,22 +40,34 @@ pub fn get_deposit_message(
 pub fn get_proposal_deposit_refund_message(
     proposer: &Addr,
     amount: &Uint128,
-    gov_token: &Addr,
+    gov_token: &Denom,
 ) -> StdResult<Vec<CosmosMsg>> {
     if *amount == Uint128::zero() {
         return Ok(vec![]);
     }
-    let transfer_cw20_msg = Cw20ExecuteMsg::Transfer {
-        recipient: proposer.into(),
-        amount: *amount,
-    };
-    let exec_cw20_transfer = WasmMsg::Execute {
-        contract_addr: gov_token.into(),
-        msg: to_binary(&transfer_cw20_msg)?,
-        funds: vec![],
-    };
-    let cw20_transfer_cosmos_msg: CosmosMsg = exec_cw20_transfer.into();
-    Ok(vec![cw20_transfer_cosmos_msg])
+    match gov_token {
+        Denom::Native(native_denom) => {
+            let send_msg = BankMsg::Send {
+                to_address: proposer.into(),
+                amount: coins(amount.u128(), native_denom),
+            };
+            let bank_msg: CosmosMsg = send_msg.into();
+            Ok(vec![bank_msg])
+        }
+        Denom::Cw20(cw20_addr) => {
+            let transfer_cw20_msg = Cw20ExecuteMsg::Transfer {
+                recipient: proposer.into(),
+                amount: *amount,
+            };
+            let exec_cw20_transfer = WasmMsg::Execute {
+                contract_addr: cw20_addr.into(),
+                msg: to_binary(&transfer_cw20_msg)?,
+                funds: vec![],
+            };
+            let cw20_transfer_cosmos_msg: CosmosMsg = exec_cw20_transfer.into();
+            Ok(vec![cw20_transfer_cosmos_msg])
+        }
+    }
 }
 
 pub fn get_total_staked_supply(deps: Deps) -> StdResult<Uint128> {
@@ -124,13 +136,13 @@ pub fn get_and_check_limit(limit: Option<u32>, max: u32, default: u32) -> StdRes
             if l <= max {
                 Ok(l)
             } else {
-                Err(StdError::GenericErr {
-                    msg: ContractError::OversizedRequest {
+                Err(StdError::generic_err(
+                    ContractError::OversizedRequest {
                         size: l as u64,
                         max: max as u64,
                     }
                     .to_string(),
-                })
+                ))
             }
         }
         None => Ok(default),

@@ -296,7 +296,7 @@ dependencies = [
  "cw3",
  "schemars",
  "serde",
- "stake-cw20",
+ "stake",
  "thiserror",
 ]
 
@@ -743,7 +743,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "stake-cw20"
+name = "stake"
 version = "0.2.6"
 dependencies = [
  "anyhow",

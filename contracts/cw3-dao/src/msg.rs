@@ -2,7 +2,7 @@ use crate::error::ContractError;
 use crate::query::ThresholdResponse;
 use crate::state::Config;
 use cosmwasm_std::{Addr, CosmosMsg, Decimal, Empty, Uint128};
-use cw20::Cw20Coin;
+use cw20::{Cw20Coin, Denom};
 use cw20_base::msg::InstantiateMarketingInfo;
 use cw3::Vote;
 use cw_utils::{Duration, Expiration};
@@ -45,6 +45,12 @@ pub enum GovTokenMsg {
     /// Use an existing cw20 token
     UseExistingCw20 {
         addr: String,
+        label: String,
+        stake_contract_code_id: u64,
+        unstaking_duration: Option<Duration>,
+    },
+    UseNative {
+        denom: String,
         label: String,
         stake_contract_code_id: u64,
         unstaking_duration: Option<Duration>,
@@ -160,9 +166,9 @@ pub enum ExecuteMsg {
     /// Update DAO config (can only be called by DAO contract)
     UpdateConfig(Config),
     /// Updates token list
-    UpdateCw20TokenList {
-        to_add: Vec<Addr>,
-        to_remove: Vec<Addr>,
+    UpdateTokenList {
+        to_add: Vec<Denom>,
+        to_remove: Vec<Denom>,
     },
     /// Update Staking Contract (can only be called by DAO contract)
     /// WARNING: this changes the contract controlling voting
@@ -204,12 +210,13 @@ pub enum QueryMsg {
     /// Returns Config
     GetConfig {},
     /// Returns All DAO Cw20 Balances
-    Cw20Balances {
+    Balances {
+        asset_type: Option<Denom>,
         start_after: Option<String>,
         limit: Option<u32>,
     },
     /// Return list of cw20 Tokens associated with the DAO Treasury
-    Cw20TokenList {},
+    TokenList {},
 }
 
 #[cfg(test)]

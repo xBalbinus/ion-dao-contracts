@@ -2,6 +2,7 @@ use crate::msg::Threshold;
 use cosmwasm_std::{
     Addr, BlockInfo, CosmosMsg, Decimal, Empty, StdError, StdResult, Storage, Uint128,
 };
+use cw20::Denom;
 use cw3::{Status, Vote};
 use cw_storage_plus::{Item, Map};
 use cw_utils::{Duration, Expiration};
@@ -156,7 +157,7 @@ pub const DAO_PAUSED: Item<Expiration> = Item::new("dao_paused");
 pub const STAKING_CONTRACT: Item<Addr> = Item::new("staking_contract");
 
 // Address of the token used for staking
-pub const GOV_TOKEN: Item<Addr> = Item::new("gov_token");
+pub const GOV_TOKEN: Item<Denom> = Item::new("gov_token");
 
 // Stores staking contract CODE ID and Unbonding time for use in a reply
 pub const STAKING_CONTRACT_CODE_ID: Item<u64> = Item::new("staking_contract_code_id");
@@ -164,9 +165,9 @@ pub const STAKING_CONTRACT_UNSTAKING_DURATION: Item<Option<Duration>> =
     Item::new("staking_contract_unstaking_duration");
 
 // Multiple-item map
-pub const BALLOTS: Map<(u64, &Addr), Ballot> = Map::new("votes");
+pub const BALLOTS: Map<(u64, &Addr), Ballot> = Map::new("votes"); // proposal_id => user_address => Ballot
 pub const PROPOSALS: Map<u64, Proposal> = Map::new("proposals");
-pub const TREASURY_TOKENS: Map<&Addr, Empty> = Map::new("treasury_tokens");
+pub const TREASURY_TOKENS: Map<(&str, &str), Empty> = Map::new("treasury_tokens"); // token_type => token_{denom / address} => Empt
 
 pub fn next_id(store: &mut dyn Storage) -> StdResult<u64> {
     let id: u64 = PROPOSAL_COUNT.may_load(store)?.unwrap_or_default() + 1;

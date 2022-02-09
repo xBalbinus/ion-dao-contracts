@@ -1,7 +1,7 @@
 use cosmwasm_schema::{export_schema, export_schema_with_title, remove_schemas, schema_for};
 use cw3_dao::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use cw3_dao::query::{
-    ConfigResponse, Cw20BalancesResponse, ProposalListResponse, ProposalResponse, VoteInfo,
+    BalancesResponse, ConfigResponse, ProposalListResponse, ProposalResponse, VoteInfo,
     VoteListResponse, VoteResponse, VoteTallyResponse,
 };
 use cw3_dao::state::{Config, Proposal};
@@ -22,11 +22,7 @@ fn main() {
     export_schema_with_title(&schema_for!(Proposal), &out_dir, "Proposal");
 
     export_schema_with_title(&schema_for!(ConfigResponse), &out_dir, "ConfigResponse");
-    export_schema_with_title(
-        &schema_for!(Cw20BalancesResponse),
-        &out_dir,
-        "Cw20BalancesResponse",
-    );
+    export_schema_with_title(&schema_for!(BalancesResponse), &out_dir, "BalancesResponse");
     export_schema_with_title(&schema_for!(ProposalResponse), &out_dir, "ProposalResponse");
     export_schema_with_title(
         &schema_for!(ProposalListResponse),

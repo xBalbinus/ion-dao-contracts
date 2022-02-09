@@ -7,7 +7,7 @@ use cw20::{
     AllAccountsResponse, AllAllowancesResponse, AllowanceResponse, BalanceResponse,
     TokenInfoResponse,
 };
-use stake_cw20::msg::{
+use stake::msg::{
     ClaimsResponse, ExecuteMsg, GetConfigResponse, InstantiateMsg, QueryMsg,
     StakedBalanceAtHeightResponse, StakedValueResponse, TotalStakedAtHeightResponse,
     TotalValueResponse,

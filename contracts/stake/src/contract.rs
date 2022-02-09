@@ -2,11 +2,11 @@
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
-    from_binary, to_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response,
-    StdError, StdResult, Uint128,
+    coins, from_binary, to_binary, Addr, BankMsg, Binary, CosmosMsg, Deps, DepsMut, Empty, Env,
+    MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg,
 };
 
-use cw20::Cw20ReceiveMsg;
+use cw20::{Cw20ReceiveMsg, Denom};
 
 use crate::msg::{
     ExecuteMsg, GetConfigResponse, InstantiateMsg, QueryMsg, ReceiveMsg,
@@ -46,7 +46,7 @@ pub fn instantiate(
 
     let config = Config {
         admin,
-        token_address: msg.token_address,
+        asset: msg.asset,
         unstaking_duration: msg.unstaking_duration,
     };
     CONFIG.save(deps.storage, &config)?;
@@ -64,11 +64,44 @@ pub fn execute(
 ) -> Result<Response<Empty>, ContractError> {
     match msg {
         ExecuteMsg::Receive(msg) => execute_receive(deps, env, info, msg),
+        ExecuteMsg::Stake {} => {
+            let received = get_received_amount(deps.as_ref(), &info)?;
+            execute_stake(deps, env, &info.sender, received)
+        }
+        ExecuteMsg::Fund {} => {
+            let received = get_received_amount(deps.as_ref(), &info)?;
+            execute_fund(deps, env, &info.sender, received)
+        }
         ExecuteMsg::Unstake { amount } => execute_unstake(deps, env, info, amount),
         ExecuteMsg::Claim {} => execute_claim(deps, env, info),
         ExecuteMsg::UpdateConfig { admin, duration } => {
             execute_update_config(info, deps, admin, duration)
         }
+    }
+}
+
+fn get_received_amount(deps: Deps, info: &MessageInfo) -> Result<Uint128, ContractError> {
+    let config = CONFIG.load(deps.storage)?;
+
+    match config.asset {
+        Denom::Native(native_denom) => {
+            let received = info
+                .funds
+                .iter()
+                .find(|fund| fund.denom == native_denom)
+                .map(|c| c.amount)
+                .unwrap_or_default();
+            if received.is_zero() {
+                return Err(ContractError::Std(StdError::generic_err(
+                    "nothing received",
+                )));
+            }
+
+            Ok(received)
+        }
+        Denom::Cw20(_) => Err(ContractError::Std(StdError::generic_err(
+            "invalid token type",
+        ))),
     }
 }
 
@@ -111,12 +144,22 @@ pub fn execute_receive(
     wrapper: Cw20ReceiveMsg,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    if info.sender != config.token_address {
-        return Err(ContractError::InvalidToken {
-            received: info.sender,
-            expected: config.token_address,
-        });
+    match config.asset {
+        Denom::Native(_) => {
+            return Err(ContractError::Std(StdError::generic_err(
+                "invalid token type",
+            )))
+        }
+        Denom::Cw20(token_address) => {
+            if info.sender != token_address {
+                return Err(ContractError::InvalidToken {
+                    received: info.sender,
+                    expected: token_address,
+                });
+            }
+        }
     }
+
     let msg: ReceiveMsg = from_binary(&wrapper.msg)?;
     let sender = deps.api.addr_validate(&wrapper.sender)?;
     match msg {
@@ -197,23 +240,12 @@ pub fn execute_unstake(
             .map_err(StdError::overflow)?,
     )?;
     match config.unstaking_duration {
-        None => {
-            let cw_send_msg = cw20::Cw20ExecuteMsg::Transfer {
-                recipient: info.sender.to_string(),
-                amount: amount_to_claim,
-            };
-            let wasm_msg = cosmwasm_std::WasmMsg::Execute {
-                contract_addr: config.token_address.to_string(),
-                msg: to_binary(&cw_send_msg)?,
-                funds: vec![],
-            };
-            Ok(Response::new()
-                .add_message(wasm_msg)
-                .add_attribute("action", "unstake")
-                .add_attribute("from", info.sender)
-                .add_attribute("amount", amount)
-                .add_attribute("claim_duration", "None"))
-        }
+        None => Ok(Response::new()
+            .add_message(get_claim_message(&info, &amount_to_claim, &config.asset))
+            .add_attribute("action", "unstake")
+            .add_attribute("from", info.sender)
+            .add_attribute("amount", amount)
+            .add_attribute("claim_duration", "None")),
         Some(duration) => {
             let outstanding_claims = CLAIMS.query_claims(deps.as_ref(), &info.sender)?.claims;
             if outstanding_claims.len() >= MAX_CLAIMS as usize {
@@ -245,20 +277,35 @@ pub fn execute_claim(
         return Err(ContractError::NothingToClaim {});
     }
     let config = CONFIG.load(deps.storage)?;
-    let cw_send_msg = cw20::Cw20ExecuteMsg::Transfer {
-        recipient: info.sender.to_string(),
-        amount: release,
-    };
-    let wasm_msg = cosmwasm_std::WasmMsg::Execute {
-        contract_addr: config.token_address.to_string(),
-        msg: to_binary(&cw_send_msg)?,
-        funds: vec![],
-    };
+
     Ok(Response::new()
-        .add_message(wasm_msg)
+        .add_message(get_claim_message(&info, &release, &config.asset))
         .add_attribute("action", "claim")
         .add_attribute("from", info.sender)
         .add_attribute("amount", release))
+}
+
+pub fn get_claim_message(info: &MessageInfo, amount: &Uint128, gov_token: &Denom) -> CosmosMsg {
+    match gov_token {
+        Denom::Native(native_denom) => BankMsg::Send {
+            to_address: info.sender.to_string(),
+            amount: coins(amount.u128(), native_denom),
+        }
+        .into(),
+        Denom::Cw20(cw20_addr) => {
+            let cw_send_msg = cw20::Cw20ExecuteMsg::Transfer {
+                recipient: info.sender.to_string(),
+                amount: *amount,
+            };
+
+            WasmMsg::Execute {
+                contract_addr: cw20_addr.to_string(),
+                msg: to_binary(&cw_send_msg).unwrap(),
+                funds: vec![],
+            }
+            .into()
+        }
+    }
 }
 
 pub fn execute_fund(
@@ -354,8 +401,8 @@ pub fn query_config(deps: Deps) -> StdResult<GetConfigResponse> {
     let config = CONFIG.load(deps.storage)?;
     Ok(GetConfigResponse {
         admin: config.admin,
+        asset: config.asset,
         unstaking_duration: config.unstaking_duration,
-        token_address: config.token_address,
     })
 }
 
@@ -375,7 +422,7 @@ mod tests {
     use crate::ContractError;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{to_binary, Addr, Empty, MessageInfo, Uint128};
-    use cw20::Cw20Coin;
+    use cw20::{Cw20Coin, Denom};
     use cw_utils::Duration;
 
     use cw_multi_test::{next_block, App, AppResponse, Contract, ContractWrapper, Executor};
@@ -441,13 +488,13 @@ mod tests {
 
     fn instantiate_staking(
         app: &mut App,
-        cw20: Addr,
+        asset: Denom,
         unstaking_duration: Option<Duration>,
     ) -> Addr {
         let staking_code_id = app.store_code(contract_staking());
         let msg = crate::msg::InstantiateMsg {
             admin: Some(Addr::unchecked("owner")),
-            token_address: cw20,
+            asset,
             unstaking_duration,
         };
         app.instantiate_contract(
@@ -470,7 +517,8 @@ mod tests {
         let cw20_addr = instantiate_cw20(app, initial_balances);
         app.update_block(next_block);
         // Instantiate staking contract
-        let staking_addr = instantiate_staking(app, cw20_addr.clone(), unstaking_duration);
+        let staking_addr =
+            instantiate_staking(app, Denom::Cw20(cw20_addr.clone()), unstaking_duration);
         app.update_block(next_block);
         (staking_addr, cw20_addr)
     }

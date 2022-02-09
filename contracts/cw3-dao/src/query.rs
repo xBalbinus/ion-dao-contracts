@@ -1,6 +1,6 @@
 use crate::state::{Config, Votes};
 use cosmwasm_std::{Addr, CosmosMsg, Decimal, Empty, Uint128};
-use cw20::Cw20CoinVerified;
+use cw20::{Balance, Denom};
 use cw3::{Status, Vote};
 use cw_utils::Expiration;
 use schemars::JsonSchema;
@@ -165,16 +165,16 @@ pub struct VoterDetail {
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct ConfigResponse {
     pub config: Config,
-    pub gov_token: Addr,
+    pub gov_token: Denom,
     pub staking_contract: Addr,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
-pub struct Cw20BalancesResponse {
-    pub cw20_balances: Vec<Cw20CoinVerified>,
+pub struct BalancesResponse {
+    pub balances: Vec<Balance>,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct TokenListResponse {
-    pub token_list: Vec<Addr>,
+    pub token_list: Vec<Denom>,
 }
