@@ -17,6 +17,30 @@
     {
       "type": "object",
       "required": [
+        "stake"
+      ],
+      "properties": {
+        "stake": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "fund"
+      ],
+      "properties": {
+        "fund": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "unstake"
       ],
       "properties": {

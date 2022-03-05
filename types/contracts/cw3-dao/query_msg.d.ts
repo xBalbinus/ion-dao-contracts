@@ -1,3 +1,5 @@
+import { Denom } from "./shared-types";
+
 export type QueryMsg = ({
 threshold: {
 [k: string]: unknown
@@ -51,13 +53,14 @@ get_config: {
 [k: string]: unknown
 }
 } | {
-cw20_balances: {
+balances: {
+asset_type?: (Denom | null)
 limit?: (number | null)
 start_after?: (string | null)
 [k: string]: unknown
 }
 } | {
-cw20_token_list: {
+token_list: {
 [k: string]: unknown
 }
 })

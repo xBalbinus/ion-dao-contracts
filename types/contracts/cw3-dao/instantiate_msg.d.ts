@@ -18,6 +18,14 @@ stake_contract_code_id: number
 unstaking_duration?: (Duration | null)
 [k: string]: unknown
 }
+} | {
+use_native: {
+denom: string
+label: string
+stake_contract_code_id: number
+unstaking_duration?: (Duration | null)
+[k: string]: unknown
+}
 })
 /**
  * This is used for uploading logo data, or setting it in InstantiateData

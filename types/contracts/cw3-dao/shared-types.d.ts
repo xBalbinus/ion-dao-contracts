@@ -1,12 +1,4 @@
 /**
- * Duration is a delta of time. You can add it to a BlockInfo or Expiration to move that further in the future. Note that an height-based Duration and a time-based Expiration cannot be combined
- */
-export type Duration = ({
-    height: number
-    } | {
-    time: number
-    });
-/**
  * A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.
  *
  * # Examples
@@ -20,6 +12,29 @@ export type Duration = ({
  * let c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```
  */
 export type Uint128 = string;
+/**
+ * A human readable address.
+ *
+ * In Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.
+ *
+ * This type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.
+ *
+ * This type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.
+ */
+export type Addr = string;
+export interface Coin {
+    [k: string]: unknown;
+    amount: Uint128;
+    denom: string;
+}
+/**
+ * Duration is a delta of time. You can add it to a BlockInfo or Expiration to move that further in the future. Note that an height-based Duration and a time-based Expiration cannot be combined
+ */
+export type Duration = ({
+    height: number
+    } | {
+    time: number
+    });
 /**
  * This defines the different ways tallies can happen.
  *
@@ -43,16 +58,11 @@ export type Threshold = ({
  * The greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)
  */
 export type Decimal = string;
-/**
- * A human readable address.
- *
- * In Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.
- *
- * This type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.
- *
- * This type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.
- */
-export type Addr = string;
+export type Denom = ({
+    native: string
+    } | {
+    cw20: Addr
+    });
 export interface Config {
     [k: string]: unknown;
     description: string;
@@ -236,11 +246,6 @@ export type WasmMsg = ({
  */
 export type Binary = string;
 export type Vote = ("yes" | "no" | "abstain" | "veto");
-export interface Coin {
-    [k: string]: unknown;
-    amount: Uint128;
-    denom: string;
-}
 /**
  * An empty struct that serves as a placeholder in different places, such as contracts that don't set a custom message.
  *

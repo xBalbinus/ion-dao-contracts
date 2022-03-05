@@ -1,4 +1,4 @@
-import { Addr, Config, CosmosMsgFor_Empty, Expiration, Vote } from "./shared-types";
+import { Addr, Config, CosmosMsgFor_Empty, Denom, Expiration, Vote } from "./shared-types";
 
 export type ExecuteMsg = ({
 propose: ProposeMsg
@@ -22,9 +22,9 @@ expiration: Expiration
 } | {
 update_config: Config
 } | {
-update_cw20_token_list: {
-to_add: Addr[]
-to_remove: Addr[]
+update_token_list: {
+to_add: Denom[]
+to_remove: Denom[]
 [k: string]: unknown
 }
 } | {

@@ -3,6 +3,14 @@ import { Addr, Duration, Uint128 } from "./shared-types";
 export type ExecuteMsg = ({
 receive: Cw20ReceiveMsg
 } | {
+stake: {
+[k: string]: unknown
+}
+} | {
+fund: {
+[k: string]: unknown
+}
+} | {
 unstake: {
 amount: Uint128
 [k: string]: unknown
@@ -13,7 +21,7 @@ claim: {
 }
 } | {
 update_config: {
-admin: Addr
+admin?: (Addr | null)
 duration?: (Duration | null)
 [k: string]: unknown
 }

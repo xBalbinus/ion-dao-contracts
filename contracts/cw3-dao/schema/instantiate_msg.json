@@ -289,6 +289,46 @@
             }
           },
           "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "use_native"
+          ],
+          "properties": {
+            "use_native": {
+              "type": "object",
+              "required": [
+                "denom",
+                "label",
+                "stake_contract_code_id"
+              ],
+              "properties": {
+                "denom": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "stake_contract_code_id": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                },
+                "unstaking_duration": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/Duration"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "additionalProperties": false
         }
       ]
     },
