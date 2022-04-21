@@ -1,19 +1,11 @@
 [workspace]
 members = ["contracts/*"]
 
-[profile.release.package.cw3-dao]
+[profile.release.package.ion-dao]
 codegen-units = 1
 incremental = false
 
-[profile.release.package.cw3-multisig]
-codegen-units = 1
-incremental = false
-
-[profile.release.package.stake-cw20]
-codegen-units = 1
-incremental = false
-
-[profile.release.package.cw-distribution]
+[profile.release.package.ion-stake]
 codegen-units = 1
 incremental = false
 

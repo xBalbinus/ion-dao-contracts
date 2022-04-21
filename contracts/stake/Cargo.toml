@@ -1,10 +1,10 @@
 [package]
-name = "stake"
-version = "0.2.6"
+name = "ion-stake"
+version = "0.0.1"
 authors = ["Ben2x4 <Ben2x4@tutanota.com>, Frostornge <hi@frostorn.ge>"]
 edition = "2018"
 license = "Apache-2.0"
-repository = "https://github.com/DA0-DA0/cw-dao/contracts/stake"
+repository = "https://github.com/alpha-dao/ion-dao-contracts/contracts/stake"
 description = "Asset that can be staked and staked balance can be queried at any height"
 
 [lib]

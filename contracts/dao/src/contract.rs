@@ -138,7 +138,7 @@ pub fn instantiate(
                 funds: vec![],
                 admin: Some(env.contract.address.to_string()),
                 label,
-                msg: to_binary(&stake::msg::InstantiateMsg {
+                msg: to_binary(&ion_stake::msg::InstantiateMsg {
                     admin: Some(env.contract.address),
                     asset: Denom::Cw20(cw20_addr.addr()),
                     unstaking_duration,
@@ -167,7 +167,7 @@ pub fn instantiate(
                 funds: vec![],
                 admin: Some(env.contract.address.to_string()),
                 label,
-                msg: to_binary(&stake::msg::InstantiateMsg {
+                msg: to_binary(&ion_stake::msg::InstantiateMsg {
                     admin: Some(env.contract.address),
                     asset: Denom::Native(denom),
                     unstaking_duration,
@@ -860,7 +860,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
                         funds: vec![],
                         admin: Some(env.contract.address.to_string()),
                         label: env.contract.address.to_string(),
-                        msg: to_binary(&stake::msg::InstantiateMsg {
+                        msg: to_binary(&ion_stake::msg::InstantiateMsg {
                             admin: Some(env.contract.address),
                             asset: Denom::Cw20(cw20_addr),
                             unstaking_duration,
