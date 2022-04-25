@@ -1,5 +1,4 @@
 use cosmwasm_std::{Addr, Uint128};
-use cw20::{Cw20ReceiveMsg, Denom};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -10,34 +9,23 @@ pub use cw_controllers::ClaimsResponse;
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq)]
 pub struct InstantiateMsg {
     pub admin: Option<Addr>,
-    pub asset: Denom,
+    pub denom: String,
     pub unstaking_duration: Option<Duration>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    // cw20
-    Receive(Cw20ReceiveMsg),
-    // native
     Stake {},
-    Fund {},
-
     Unstake {
         amount: Uint128,
     },
+    Fund {},
     Claim {},
     UpdateConfig {
         admin: Option<Addr>,
         duration: Option<Duration>,
     },
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ReceiveMsg {
-    Stake {},
-    Fund {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -90,6 +78,6 @@ pub struct TotalValueResponse {
 #[serde(rename_all = "snake_case")]
 pub struct GetConfigResponse {
     pub admin: Option<Addr>,
-    pub asset: Denom,
+    pub denom: String,
     pub unstaking_duration: Option<Duration>,
 }

@@ -2,7 +2,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{Addr, Uint128};
-use cw20::Denom;
 use cw_controllers::Claims;
 use cw_storage_plus::{Item, SnapshotItem, SnapshotMap, Strategy};
 use cw_utils::Duration;
@@ -10,7 +9,7 @@ use cw_utils::Duration;
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct Config {
     pub admin: Option<Addr>,
-    pub asset: Denom,
+    pub denom: String,
     pub unstaking_duration: Option<Duration>,
 }
 
