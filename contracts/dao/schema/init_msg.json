@@ -1,12 +1,13 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Config",
+  "title": "InitMsg",
   "type": "object",
   "required": [
     "deposit_period",
     "description",
+    "gov_token",
     "name",
-    "proposal_deposit",
+    "proposal_deposit_amount",
     "threshold",
     "voting_period"
   ],
@@ -17,14 +18,32 @@
     "description": {
       "type": "string"
     },
+    "gov_token": {
+      "description": "Set an existing governance token or launch a new one",
+      "allOf": [
+        {
+          "$ref": "#/definitions/GovToken"
+        }
+      ]
+    },
     "name": {
       "type": "string"
     },
-    "proposal_deposit": {
-      "$ref": "#/definitions/Uint128"
+    "proposal_deposit_amount": {
+      "description": "Deposit required to make a proposal",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Uint128"
+        }
+      ]
     },
     "threshold": {
-      "$ref": "#/definitions/Threshold"
+      "description": "Voting params configuration",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Threshold"
+        }
+      ]
     },
     "voting_period": {
       "$ref": "#/definitions/Duration"
@@ -68,6 +87,37 @@
           "additionalProperties": false
         }
       ]
+    },
+    "GovToken": {
+      "type": "object",
+      "required": [
+        "denom",
+        "label",
+        "stake_contract_code_id"
+      ],
+      "properties": {
+        "denom": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "stake_contract_code_id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "unstaking_duration": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Duration"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
     },
     "Threshold": {
       "description": "Declares a `quorum` of the total votes that must participate in the election in order for the vote to be considered at all. See `ThresholdResponse.ThresholdQuorum` in the cw3 spec for details.",

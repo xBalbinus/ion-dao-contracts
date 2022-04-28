@@ -1,12 +1,11 @@
-use cosmwasm_schema::{export_schema, export_schema_with_title, remove_schemas, schema_for};
-use ion_dao::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
-use ion_dao::query::{
-    BalancesResponse, ConfigResponse, ProposalListResponse, ProposalResponse, VoteInfo,
-    VoteListResponse, VoteResponse, VoteTallyResponse,
-};
-use ion_dao::state::{Config, Proposal};
 use std::env::current_dir;
 use std::fs::create_dir_all;
+
+use cosmwasm_schema::{export_schema_with_title, remove_schemas, schema_for};
+
+use ion_dao::msg;
+use ion_dao::query;
+use ion_dao::state;
 
 fn main() {
     let mut out_dir = current_dir().unwrap();
@@ -14,27 +13,49 @@ fn main() {
     create_dir_all(&out_dir).unwrap();
     remove_schemas(&out_dir).unwrap();
 
-    export_schema(&schema_for!(InstantiateMsg), &out_dir);
-    export_schema_with_title(&schema_for!(ExecuteMsg), &out_dir, "ExecuteMsg");
-    export_schema_with_title(&schema_for!(QueryMsg), &out_dir, "QueryMsg");
+    export_schema_with_title(&schema_for!(msg::InstantiateMsg), &out_dir, "InitMsg");
+    export_schema_with_title(&schema_for!(msg::ExecuteMsg), &out_dir, "ExecuteMsg");
+    export_schema_with_title(&schema_for!(msg::QueryMsg), &out_dir, "QueryMsg");
 
-    export_schema_with_title(&schema_for!(Config), &out_dir, "Config");
-    export_schema_with_title(&schema_for!(Proposal), &out_dir, "Proposal");
+    export_schema_with_title(&schema_for!(state::Config), &out_dir, "Config");
+    export_schema_with_title(&schema_for!(state::Proposal), &out_dir, "Proposal");
+    export_schema_with_title(&schema_for!(state::BlockTime), &out_dir, "BlockTime");
+    export_schema_with_title(&schema_for!(state::Ballot), &out_dir, "Ballot");
+    export_schema_with_title(&schema_for!(state::Votes), &out_dir, "Votes");
+    export_schema_with_title(&schema_for!(state::Threshold), &out_dir, "Threshold");
 
-    export_schema_with_title(&schema_for!(ConfigResponse), &out_dir, "ConfigResponse");
-    export_schema_with_title(&schema_for!(BalancesResponse), &out_dir, "BalancesResponse");
-    export_schema_with_title(&schema_for!(ProposalResponse), &out_dir, "ProposalResponse");
     export_schema_with_title(
-        &schema_for!(ProposalListResponse),
+        &schema_for!(query::ConfigResponse),
         &out_dir,
-        "ProposalListResponse",
+        "ConfigResponse",
     );
-    export_schema_with_title(&schema_for!(VoteInfo), &out_dir, "VoteInfo");
-    export_schema_with_title(&schema_for!(VoteResponse), &out_dir, "VoteResponse");
-    export_schema_with_title(&schema_for!(VoteListResponse), &out_dir, "VoteListResponse");
     export_schema_with_title(
-        &schema_for!(VoteTallyResponse),
+        &schema_for!(query::TokenListResponse),
         &out_dir,
-        "VoteTallyResponse",
+        "TokenListResponse",
+    );
+    export_schema_with_title(
+        &schema_for!(query::TokenBalancesResponse),
+        &out_dir,
+        "TokenBalancesResponse",
+    );
+
+    export_schema_with_title(
+        &schema_for!(query::ProposalResponse),
+        &out_dir,
+        "ProposalResponse",
+    );
+    export_schema_with_title(
+        &schema_for!(query::ProposalsResponse),
+        &out_dir,
+        "ProposalsResponse",
+    );
+
+    export_schema_with_title(&schema_for!(query::VoteInfo), &out_dir, "VoteInfo");
+    export_schema_with_title(&schema_for!(query::VoteResponse), &out_dir, "VoteResponse");
+    export_schema_with_title(
+        &schema_for!(query::VotesResponse),
+        &out_dir,
+        "VotesResponse",
     );
 }

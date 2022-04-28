@@ -4,11 +4,12 @@
   "type": "object",
   "required": [
     "deposit",
+    "deposit_starts_at",
     "description",
-    "expires",
+    "expires_at",
+    "link",
     "msgs",
     "proposer",
-    "start_height",
     "status",
     "threshold",
     "title",
@@ -24,11 +25,24 @@
         }
       ]
     },
+    "deposit_starts_at": {
+      "description": "Starting time / height information",
+      "allOf": [
+        {
+          "$ref": "#/definitions/BlockTime"
+        }
+      ]
+    },
     "description": {
+      "description": "Proposal Description",
       "type": "string"
     },
-    "expires": {
+    "expires_at": {
       "$ref": "#/definitions/Expiration"
+    },
+    "link": {
+      "description": "Related link about this proposal",
+      "type": "string"
     },
     "msgs": {
       "type": "array",
@@ -37,12 +51,12 @@
       }
     },
     "proposer": {
-      "$ref": "#/definitions/Addr"
-    },
-    "start_height": {
-      "type": "integer",
-      "format": "uint64",
-      "minimum": 0.0
+      "description": "Address of proposer",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Addr"
+        }
+      ]
     },
     "status": {
       "$ref": "#/definitions/Status"
@@ -56,6 +70,7 @@
       ]
     },
     "title": {
+      "description": "Proposal title",
       "type": "string"
     },
     "total_weight": {
@@ -63,6 +78,16 @@
       "allOf": [
         {
           "$ref": "#/definitions/Uint128"
+        }
+      ]
+    },
+    "vote_starts_at": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/BlockTime"
+        },
+        {
+          "type": "null"
         }
       ]
     },
@@ -140,6 +165,23 @@
     "Binary": {
       "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>",
       "type": "string"
+    },
+    "BlockTime": {
+      "type": "object",
+      "required": [
+        "height",
+        "time"
+      ],
+      "properties": {
+        "height": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "time": {
+          "$ref": "#/definitions/Timestamp"
+        }
+      }
     },
     "Coin": {
       "type": "object",
@@ -418,55 +460,24 @@
       ]
     },
     "Threshold": {
-      "description": "This defines the different ways tallies can happen.\n\nThe total_weight used for calculating success as well as the weights of each individual voter used in tallying should be snapshotted at the beginning of the block at which the proposal starts (this is likely the responsibility of a correct cw4 implementation). See also `ThresholdResponse` in the cw3 spec.",
-      "oneOf": [
-        {
-          "description": "Declares a percentage of the total weight that must cast Yes votes in order for a proposal to pass. See `ThresholdResponse.AbsolutePercentage` in the cw3 spec for details.",
-          "type": "object",
-          "required": [
-            "absolute_percentage"
-          ],
-          "properties": {
-            "absolute_percentage": {
-              "type": "object",
-              "required": [
-                "percentage"
-              ],
-              "properties": {
-                "percentage": {
-                  "$ref": "#/definitions/Decimal"
-                }
-              }
-            }
-          },
-          "additionalProperties": false
+      "description": "Declares a `quorum` of the total votes that must participate in the election in order for the vote to be considered at all. See `ThresholdResponse.ThresholdQuorum` in the cw3 spec for details.",
+      "type": "object",
+      "required": [
+        "quorum",
+        "threshold",
+        "veto_threshold"
+      ],
+      "properties": {
+        "quorum": {
+          "$ref": "#/definitions/Decimal"
         },
-        {
-          "description": "Declares a `quorum` of the total votes that must participate in the election in order for the vote to be considered at all. See `ThresholdResponse.ThresholdQuorum` in the cw3 spec for details.",
-          "type": "object",
-          "required": [
-            "threshold_quorum"
-          ],
-          "properties": {
-            "threshold_quorum": {
-              "type": "object",
-              "required": [
-                "quorum",
-                "threshold"
-              ],
-              "properties": {
-                "quorum": {
-                  "$ref": "#/definitions/Decimal"
-                },
-                "threshold": {
-                  "$ref": "#/definitions/Decimal"
-                }
-              }
-            }
-          },
-          "additionalProperties": false
+        "threshold": {
+          "$ref": "#/definitions/Decimal"
+        },
+        "veto_threshold": {
+          "$ref": "#/definitions/Decimal"
         }
-      ]
+      }
     },
     "Timestamp": {
       "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
