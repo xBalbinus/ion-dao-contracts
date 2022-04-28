@@ -1,18 +1,19 @@
-use crate::msg::{
-    ExecuteMsg, GetConfigResponse, QueryMsg, StakedBalanceAtHeightResponse, StakedValueResponse,
-    TotalStakedAtHeightResponse, TotalValueResponse,
-};
-use crate::state::MAX_CLAIMS;
-use crate::ContractError;
 use anyhow::Result as AnyResult;
 use cosmwasm_std::testing::mock_info;
 use cosmwasm_std::{coin, coins, Addr, BankMsg, Coin, Empty, Uint128};
-use cw_controllers::{Claim, ClaimsResponse};
+use cw_controllers::Claim;
 use cw_multi_test::{
     next_block, App, AppResponse, BankSudo, Contract, ContractWrapper, Executor, SudoMsg,
 };
-use cw_utils::Duration;
 use cw_utils::Expiration::AtHeight;
+
+use crate::msg::{
+    ClaimsResponse, Duration, ExecuteMsg, GetConfigResponse, QueryMsg,
+    StakedBalanceAtHeightResponse, StakedValueResponse, TotalStakedAtHeightResponse,
+    TotalValueResponse,
+};
+use crate::state::MAX_CLAIMS;
+use crate::ContractError;
 
 const DENOM: &str = "denom";
 const ADDR_OWNER: &str = "owner";

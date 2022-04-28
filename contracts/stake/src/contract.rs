@@ -1,32 +1,20 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-
 use cosmwasm_std::{
     coins, to_binary, Addr, BankMsg, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response,
     StdError, StdResult, Uint128,
 };
 use cw2::set_contract_version;
-use cw_controllers::ClaimsResponse;
-use cw_utils::Duration;
 
 use crate::msg::{
-    ExecuteMsg, GetConfigResponse, InstantiateMsg, QueryMsg, StakedBalanceAtHeightResponse,
-    StakedValueResponse, TotalStakedAtHeightResponse, TotalValueResponse,
+    ClaimsResponse, Duration, ExecuteMsg, GetConfigResponse, InstantiateMsg, QueryMsg,
+    StakedBalanceAtHeightResponse, StakedValueResponse, TotalStakedAtHeightResponse,
+    TotalValueResponse,
 };
 use crate::state::{Config, BALANCE, CLAIMS, CONFIG, MAX_CLAIMS, STAKED_BALANCES, STAKED_TOTAL};
 use crate::ContractError;
-pub use cw20_base::allowances::{
-    execute_burn_from, execute_decrease_allowance, execute_increase_allowance, execute_send_from,
-    execute_transfer_from, query_allowance,
-};
-pub use cw20_base::contract::{
-    execute_burn, execute_mint, execute_send, execute_transfer, execute_update_marketing,
-    execute_upload_logo, query_balance, query_download_logo, query_marketing_info, query_minter,
-    query_token_info,
-};
-pub use cw20_base::enumerable::{query_all_accounts, query_all_allowances};
 
-const CONTRACT_NAME: &str = "crates.io:stake_cw20";
+const CONTRACT_NAME: &str = "crates.io:ion-stake";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]

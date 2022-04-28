@@ -1,10 +1,8 @@
 use cosmwasm_std::{Addr, Uint128};
+pub use cw_controllers::ClaimsResponse;
+pub use cw_utils::Duration;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-use cw_utils::Duration;
-
-pub use cw_controllers::ClaimsResponse;
 
 #[derive(Serialize, Deserialize, JsonSchema, Debug, Clone, PartialEq)]
 pub struct InstantiateMsg {
