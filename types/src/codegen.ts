@@ -231,7 +231,7 @@ async function findEmptyFiles(directory: string): Promise<string[]> {
             !fs.lstatSync(filename).isDirectory()
           ) {
             if (isEmptyFile(filename)) {
-              emptyFiles.push(entry.replace(".d.ts", ""));
+              emptyFiles.push(entry.replace(".ts", ""));
             }
           }
         } catch (e) {
@@ -267,7 +267,7 @@ async function dedup(inputPath: string, outputPath?: string): Promise<void> {
   log(`starting dedup files in ${inputPath}...`, LogLevels.Verbose);
   const options: IDeDupeOptions = {
     project: path.join(inputPath, "tsconfig.json"),
-    duplicatesFile: path.join(outputPath, "shared-types.d.ts"),
+    duplicatesFile: path.join(outputPath, "shared-types.ts"),
     barrelFile: path.join(outputPath, "index.ts"),
     retainEmptyFiles: true,
   };
@@ -301,7 +301,7 @@ function ensurePath(outputPath: string) {
 async function compileSchemaFile(schemaFile: string, spec: CompilationSpec) {
   const outputFile = path.join(
     spec.outputPath,
-    path.basename(schemaFile).replace(".json", ".d.ts")
+    path.basename(schemaFile).replace(".json", ".ts")
   );
   const ts = await compileFromFile(schemaFile, spec.options);
   ensurePath(path.dirname(outputFile));
@@ -320,17 +320,17 @@ async function writeIndex(outputPath: string) {
     fs.readdir(outputPath, (err, dirEntries) => {
       if (err) {
         console.error(err);
-        reject(err)
+        reject(err);
       }
 
       dirEntries.forEach((entry) => {
         const fullPath = path.join(outputPath, entry);
-        if (entry.endsWith(".d.ts") && fs.existsSync(fullPath)) {
-          exports.push(`export * from './${path.basename(entry, '.d.ts')}'`);
+        if (entry.endsWith(".ts") && fs.existsSync(fullPath)) {
+          exports.push(`export * from './${path.basename(entry, ".ts")}'`);
         }
       });
 
-      fs.writeFileSync(indexFilePath, exports.join('\n') + '\n')
+      fs.writeFileSync(indexFilePath, exports.join("\n") + "\n");
       resolve(exports);
     });
   });
@@ -390,14 +390,15 @@ async function main() {
       dedupPromises.push(dedup(spec.outputPath));
     }
     await Promise.all(dedupPromises);
-    const indexPromises = []
+    const indexPromises = [];
     for (const spec of compilationSpecs) {
       if (!fs.existsSync(path.join(spec.outputPath, "index.ts"))) {
         indexPromises.push(writeIndex(spec.outputPath));
       }
     }
-    await Promise.all(indexPromises)
+    await Promise.all(indexPromises);
   }
+
   log(`code generation complete`, LogLevels.Normal);
 }
 

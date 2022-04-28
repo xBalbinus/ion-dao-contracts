@@ -1,4 +1,4 @@
-export type Vote = ("yes" | "no" | "abstain" | "veto");
+export type Vote = "yes" | "no" | "abstain" | "veto";
 /**
  * A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.
  *
@@ -38,18 +38,20 @@ export type Timestamp = Uint64;
  */
 export type Uint64 = string;
 export interface BlockTime {
-    [k: string]: unknown;
-    height: number;
-    time: Timestamp;
+  [k: string]: unknown;
+  height: number;
+  time: Timestamp;
 }
 /**
  * Duration is a delta of time. You can add it to a BlockInfo or Expiration to move that further in the future. Note that an height-based Duration and a time-based Expiration cannot be combined
  */
-export type Duration = ({
-    height: number
-    } | {
-    time: number
-    });
+export type Duration =
+  | {
+      height: number;
+    }
+  | {
+      time: number;
+    };
 /**
  * A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0
  *
@@ -67,153 +69,170 @@ export type Decimal = string;
  */
 export type Addr = string;
 export interface Config {
-    [k: string]: unknown;
-    deposit_period: Duration;
-    description: string;
-    name: string;
-    proposal_deposit: Uint128;
-    threshold: Threshold;
-    voting_period: Duration;
+  [k: string]: unknown;
+  deposit_period: Duration;
+  description: string;
+  name: string;
+  proposal_deposit: Uint128;
+  threshold: Threshold;
+  voting_period: Duration;
 }
 /**
  * Declares a `quorum` of the total votes that must participate in the election in order for the vote to be considered at all. See `ThresholdResponse.ThresholdQuorum` in the cw3 spec for details.
  */
 export interface Threshold {
-    [k: string]: unknown;
-    quorum: Decimal;
-    threshold: Decimal;
-    veto_threshold: Decimal;
+  [k: string]: unknown;
+  quorum: Decimal;
+  threshold: Decimal;
+  veto_threshold: Decimal;
 }
-export type CosmosMsgFor_Empty = ({
-    bank: BankMsg
-    } | {
-    custom: Empty
-    } | {
-    staking: StakingMsg
-    } | {
-    distribution: DistributionMsg
-    } | {
-    wasm: WasmMsg
-    });
+export type CosmosMsgFor_Empty =
+  | {
+      bank: BankMsg;
+    }
+  | {
+      custom: Empty;
+    }
+  | {
+      staking: StakingMsg;
+    }
+  | {
+      distribution: DistributionMsg;
+    }
+  | {
+      wasm: WasmMsg;
+    };
 /**
  * The message types of the bank module.
  *
  * See https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/bank/v1beta1/tx.proto
  */
-export type BankMsg = ({
-    send: {
-    amount: Coin[]
-    to_address: string
-    [k: string]: unknown
+export type BankMsg =
+  | {
+      send: {
+        amount: Coin[];
+        to_address: string;
+        [k: string]: unknown;
+      };
     }
-    } | {
-    burn: {
-    amount: Coin[]
-    [k: string]: unknown
-    }
-    });
+  | {
+      burn: {
+        amount: Coin[];
+        [k: string]: unknown;
+      };
+    };
 /**
  * The message types of the staking module.
  *
  * See https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/staking/v1beta1/tx.proto
  */
-export type StakingMsg = ({
-    delegate: {
-    amount: Coin
-    validator: string
-    [k: string]: unknown
+export type StakingMsg =
+  | {
+      delegate: {
+        amount: Coin;
+        validator: string;
+        [k: string]: unknown;
+      };
     }
-    } | {
-    undelegate: {
-    amount: Coin
-    validator: string
-    [k: string]: unknown
+  | {
+      undelegate: {
+        amount: Coin;
+        validator: string;
+        [k: string]: unknown;
+      };
     }
-    } | {
-    redelegate: {
-    amount: Coin
-    dst_validator: string
-    src_validator: string
-    [k: string]: unknown
-    }
-    });
+  | {
+      redelegate: {
+        amount: Coin;
+        dst_validator: string;
+        src_validator: string;
+        [k: string]: unknown;
+      };
+    };
 /**
  * The message types of the distribution module.
  *
  * See https://github.com/cosmos/cosmos-sdk/blob/v0.42.4/proto/cosmos/distribution/v1beta1/tx.proto
  */
-export type DistributionMsg = ({
-    set_withdraw_address: {
-    /**
-     * The `withdraw_address`
-     */
-    address: string
-    [k: string]: unknown
+export type DistributionMsg =
+  | {
+      set_withdraw_address: {
+        /**
+         * The `withdraw_address`
+         */
+        address: string;
+        [k: string]: unknown;
+      };
     }
-    } | {
-    withdraw_delegator_reward: {
-    /**
-     * The `validator_address`
-     */
-    validator: string
-    [k: string]: unknown
-    }
-    });
+  | {
+      withdraw_delegator_reward: {
+        /**
+         * The `validator_address`
+         */
+        validator: string;
+        [k: string]: unknown;
+      };
+    };
 /**
  * The message types of the wasm module.
  *
  * See https://github.com/CosmWasm/wasmd/blob/v0.14.0/x/wasm/internal/types/tx.proto
  */
-export type WasmMsg = ({
-    execute: {
-    contract_addr: string
-    funds: Coin[]
-    /**
-     * msg is the json-encoded ExecuteMsg struct (as raw Binary)
-     */
-    msg: Binary
-    [k: string]: unknown
+export type WasmMsg =
+  | {
+      execute: {
+        contract_addr: string;
+        funds: Coin[];
+        /**
+         * msg is the json-encoded ExecuteMsg struct (as raw Binary)
+         */
+        msg: Binary;
+        [k: string]: unknown;
+      };
     }
-    } | {
-    instantiate: {
-    admin?: (string | null)
-    code_id: number
-    funds: Coin[]
-    /**
-     * A human-readbale label for the contract
-     */
-    label: string
-    /**
-     * msg is the JSON-encoded InstantiateMsg struct (as raw Binary)
-     */
-    msg: Binary
-    [k: string]: unknown
+  | {
+      instantiate: {
+        admin?: string | null;
+        code_id: number;
+        funds: Coin[];
+        /**
+         * A human-readbale label for the contract
+         */
+        label: string;
+        /**
+         * msg is the JSON-encoded InstantiateMsg struct (as raw Binary)
+         */
+        msg: Binary;
+        [k: string]: unknown;
+      };
     }
-    } | {
-    migrate: {
-    contract_addr: string
-    /**
-     * msg is the json-encoded MigrateMsg struct that will be passed to the new code
-     */
-    msg: Binary
-    /**
-     * the code_id of the new logic to place in the given contract
-     */
-    new_code_id: number
-    [k: string]: unknown
+  | {
+      migrate: {
+        contract_addr: string;
+        /**
+         * msg is the json-encoded MigrateMsg struct that will be passed to the new code
+         */
+        msg: Binary;
+        /**
+         * the code_id of the new logic to place in the given contract
+         */
+        new_code_id: number;
+        [k: string]: unknown;
+      };
     }
-    } | {
-    update_admin: {
-    admin: string
-    contract_addr: string
-    [k: string]: unknown
+  | {
+      update_admin: {
+        admin: string;
+        contract_addr: string;
+        [k: string]: unknown;
+      };
     }
-    } | {
-    clear_admin: {
-    contract_addr: string
-    [k: string]: unknown
-    }
-    });
+  | {
+      clear_admin: {
+        contract_addr: string;
+        [k: string]: unknown;
+      };
+    };
 /**
  * Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.
  *
@@ -223,24 +242,29 @@ export type Binary = string;
 /**
  * Expiration represents a point in time when some event happens. It can compare with a BlockInfo and will return is_expired() == true once the condition is hit (and for every block in the future)
  */
-export type Expiration = ({
-    at_height: number
-    } | {
-    at_time: Timestamp
-    } | {
-    never: {
-    [k: string]: unknown
+export type Expiration =
+  | {
+      at_height: number;
     }
-    });
-export type Denom = ({
-    native: string
-    } | {
-    cw20: Addr
-    });
+  | {
+      at_time: Timestamp;
+    }
+  | {
+      never: {
+        [k: string]: unknown;
+      };
+    };
+export type Denom =
+  | {
+      native: string;
+    }
+  | {
+      cw20: Addr;
+    };
 export interface Coin {
-    [k: string]: unknown;
-    amount: Uint128;
-    denom: string;
+  [k: string]: unknown;
+  amount: Uint128;
+  denom: string;
 }
 /**
  * An empty struct that serves as a placeholder in different places, such as contracts that don't set a custom message.
@@ -248,22 +272,22 @@ export interface Coin {
  * It is designed to be expressable in correct JSON and JSON Schema but contains no meaningful data. Previously we used enums without cases, but those cannot represented as valid JSON Schema (https://github.com/CosmWasm/cosmwasm/issues/451)
  */
 export interface Empty {
-    [k: string]: unknown;
+  [k: string]: unknown;
 }
-export type Status = ("pending" | "open" | "rejected" | "passed" | "executed");
+export type Status = "pending" | "open" | "rejected" | "passed" | "executed";
 export interface Votes {
-    [k: string]: unknown;
-    abstain: Uint128;
-    no: Uint128;
-    veto: Uint128;
-    yes: Uint128;
+  [k: string]: unknown;
+  abstain: Uint128;
+  no: Uint128;
+  veto: Uint128;
+  yes: Uint128;
 }
 /**
  * Returns the vote (opinion as well as weight counted) as well as the address of the voter who submitted it
  */
 export interface VoteInfo {
-    [k: string]: unknown;
-    vote: Vote;
-    voter: string;
-    weight: Uint128;
+  [k: string]: unknown;
+  vote: Vote;
+  voter: string;
+  weight: Uint128;
 }
