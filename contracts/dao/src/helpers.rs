@@ -1,18 +1,20 @@
 use cosmwasm_std::{
-    coins, to_binary, Addr, BankMsg, BlockInfo, CosmosMsg, Deps, Env, MessageInfo, StdError,
-    StdResult, Uint128, WasmMsg,
+    to_binary, Addr, BlockInfo, CosmosMsg, Decimal, Deps, Env, MessageInfo, StdError, StdResult,
+    Uint128, WasmMsg,
 };
-use cw20::{Cw20ExecuteMsg, Denom};
+use cw20::Cw20ExecuteMsg;
+use cw_utils::{Duration, Expiration};
 
-use ion_stake::msg::{
-    QueryMsg as StakingContractQueryMsg, StakedBalanceAtHeightResponse, TotalStakedAtHeightResponse,
-};
+use crate::query::ProposalResponse;
+use crate::state::{Proposal, STAKING_CONTRACT};
+use crate::ContractError;
 
-use crate::{
-    query::ProposalResponse,
-    state::{parse_id, Proposal, STAKING_CONTRACT},
-    ContractError,
-};
+pub fn duration_to_expiry(block: &BlockInfo, period: &Duration) -> Expiration {
+    match period {
+        Duration::Height(height) => Expiration::AtHeight(block.height + height),
+        Duration::Time(time) => Expiration::AtTime(block.time.plus_seconds(*time)),
+    }
+}
 
 pub fn get_deposit_message(
     env: &Env,
@@ -37,46 +39,13 @@ pub fn get_deposit_message(
     Ok(vec![cw20_transfer_cosmos_msg])
 }
 
-pub fn get_proposal_deposit_refund_message(
-    proposer: &Addr,
-    amount: &Uint128,
-    gov_token: &Denom,
-) -> StdResult<Vec<CosmosMsg>> {
-    if *amount == Uint128::zero() {
-        return Ok(vec![]);
-    }
-    match gov_token {
-        Denom::Native(native_denom) => {
-            let send_msg = BankMsg::Send {
-                to_address: proposer.into(),
-                amount: coins(amount.u128(), native_denom),
-            };
-            let bank_msg: CosmosMsg = send_msg.into();
-            Ok(vec![bank_msg])
-        }
-        Denom::Cw20(cw20_addr) => {
-            let transfer_cw20_msg = Cw20ExecuteMsg::Transfer {
-                recipient: proposer.into(),
-                amount: *amount,
-            };
-            let exec_cw20_transfer = WasmMsg::Execute {
-                contract_addr: cw20_addr.into(),
-                msg: to_binary(&transfer_cw20_msg)?,
-                funds: vec![],
-            };
-            let cw20_transfer_cosmos_msg: CosmosMsg = exec_cw20_transfer.into();
-            Ok(vec![cw20_transfer_cosmos_msg])
-        }
-    }
-}
-
 pub fn get_total_staked_supply(deps: Deps) -> StdResult<Uint128> {
     let staking_contract = STAKING_CONTRACT.load(deps.storage)?;
 
     // Get total supply
-    let total: TotalStakedAtHeightResponse = deps.querier.query_wasm_smart(
+    let total: ion_stake::msg::TotalStakedAtHeightResponse = deps.querier.query_wasm_smart(
         staking_contract,
-        &StakingContractQueryMsg::TotalStakedAtHeight { height: None },
+        &ion_stake::msg::QueryMsg::TotalStakedAtHeight { height: None },
     )?;
     Ok(total.total)
 }
@@ -85,9 +54,9 @@ pub fn get_staked_balance(deps: Deps, address: Addr) -> StdResult<Uint128> {
     let staking_contract = STAKING_CONTRACT.load(deps.storage)?;
 
     // Get current staked balance
-    let res: StakedBalanceAtHeightResponse = deps.querier.query_wasm_smart(
+    let res: ion_stake::msg::StakedBalanceAtHeightResponse = deps.querier.query_wasm_smart(
         staking_contract,
-        &StakingContractQueryMsg::StakedBalanceAtHeight {
+        &ion_stake::msg::QueryMsg::StakedBalanceAtHeight {
             address: address.to_string(),
             height: None,
         },
@@ -99,9 +68,9 @@ pub fn get_voting_power_at_height(deps: Deps, address: Addr, height: u64) -> Std
     let staking_contract = STAKING_CONTRACT.load(deps.storage)?;
 
     // Get voting power at height
-    let balance: StakedBalanceAtHeightResponse = deps.querier.query_wasm_smart(
+    let balance: ion_stake::msg::StakedBalanceAtHeightResponse = deps.querier.query_wasm_smart(
         staking_contract,
-        &StakingContractQueryMsg::StakedBalanceAtHeight {
+        &ion_stake::msg::QueryMsg::StakedBalanceAtHeight {
             address: address.to_string(),
             height: Some(height),
         },
@@ -109,25 +78,34 @@ pub fn get_voting_power_at_height(deps: Deps, address: Addr, height: u64) -> Std
     Ok(balance.balance)
 }
 
-pub fn map_proposal(
-    block: &BlockInfo,
-    item: StdResult<(Vec<u8>, Proposal)>,
-) -> StdResult<ProposalResponse> {
-    let (key, prop) = item?;
+pub fn proposal_to_response(block: &BlockInfo, id: u64, prop: Proposal) -> ProposalResponse {
     let status = prop.current_status(block);
-    let threshold = prop.threshold.to_response(prop.total_weight);
-    Ok(ProposalResponse {
-        id: parse_id(&key)?,
+    let total_weight = prop.total_weight;
+    let total_votes = prop.votes.total();
+    let quorum = Decimal::from_ratio(total_votes, total_weight);
+
+    ProposalResponse {
+        id,
+
         title: prop.title,
+        link: prop.link,
         description: prop.description,
         proposer: prop.proposer,
         msgs: prop.msgs,
         status,
-        expires: prop.expires,
-        threshold,
+
+        deposit_starts_at: prop.deposit_starts_at,
+        vote_starts_at: prop.vote_starts_at,
+        expires_at: prop.expires_at,
+
+        votes: prop.votes,
+        quorum,
+        threshold: prop.threshold,
+        total_votes,
+        total_weight,
+
         deposit_amount: prop.deposit,
-        start_height: prop.start_height,
-    })
+    }
 }
 
 pub fn get_and_check_limit(limit: Option<u32>, max: u32, default: u32) -> StdResult<u32> {

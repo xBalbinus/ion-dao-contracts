@@ -39,6 +39,9 @@ pub enum ContractError {
     #[error("Already voted on this proposal")]
     AlreadyVoted {},
 
+    #[error("Cannot deposit to non-pended proposals")]
+    WrongDepositStatus {},
+
     #[error("Cannot execute completed or unpassed proposals")]
     WrongExecuteStatus {},
 
