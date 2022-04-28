@@ -1,8 +1,13 @@
 {
-  "name": "@dao-dao/types",
-  "version": "0.0.9",
-  "description": "",
-  "main": "build/codegen.js",
+  "name": "@alpha-dao/ion-dao-types",
+  "version": "0.0.1",
+  "description": "Official types of ion dao contract",
+  "repository": "git://github.com/alpha-dao/ion-dao-contracts.git",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*"
+  ],
   "scripts": {
     "prepare": "tsc",
     "build": "tsc",
@@ -11,11 +16,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "husky": {
-    "hooks": {
-      "pre-commit": "pretty-quick --staged"
-    }
-  },
   "devDependencies": {
     "@types/node": "^15.14.9",
     "husky": "^7.0.4",
