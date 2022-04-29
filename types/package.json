@@ -11,7 +11,11 @@
   "scripts": {
     "prepare": "tsc",
     "build": "tsc",
-    "codegen": "ts-node src/codegen.ts && find ./contracts -type f -empty -print -delete && prettier --write ./contracts/**/*.ts "
+    "cleanup-tsconfig": "find './contracts' -name 'tsconfig.json' -print -delete",
+    "cleanup-empty": "find './contracts' -type 'f' -empty -print -delete",
+    "cleanup": "yarn cleanup-tsconfig && yarn cleanup-empty",
+    "pretty": "prettier --write './contracts/**/*.{ts,json}'",
+    "codegen": "ts-node src/codegen.ts && yarn cleanup && yarn pretty"
   },
   "keywords": [],
   "author": "",
