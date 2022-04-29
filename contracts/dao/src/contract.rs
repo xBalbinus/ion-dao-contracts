@@ -246,6 +246,8 @@ pub fn execute_deposit(
         prop.expires_at = duration_to_expiry(&env.block, &cfg.voting_period);
     }
 
+    PROPOSALS.save(deps.storage, proposal_id, &prop)?;
+
     Ok(Response::new().add_attributes(vec![
         ("action", "deposit"),
         ("result", "processed"),
