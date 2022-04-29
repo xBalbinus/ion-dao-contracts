@@ -25,6 +25,7 @@ pub struct InstantiateMsg {
 
     /// Deposit required to make a proposal
     pub proposal_deposit_amount: Uint128,
+    pub proposal_deposit_min_amount: Uint128,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]

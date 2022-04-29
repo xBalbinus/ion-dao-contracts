@@ -18,6 +18,7 @@ pub struct Config {
     pub voting_period: Duration,
     pub deposit_period: Duration,
     pub proposal_deposit: Uint128,
+    pub proposal_min_deposit: Uint128,
 }
 
 // we cast a ballot with our chosen vote and a given weight

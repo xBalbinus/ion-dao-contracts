@@ -53,6 +53,7 @@ pub fn instantiate(
         voting_period: msg.voting_period,
         deposit_period: msg.deposit_period,
         proposal_deposit: msg.proposal_deposit_amount,
+        proposal_min_deposit: msg.proposal_deposit_min_amount,
     };
     CONFIG.save(deps.storage, &cfg)?;
 
@@ -128,6 +129,9 @@ pub fn execute_propose(
 
     let received = cw_utils::may_pay(&info, gov_token.as_str())
         .map_err(|e| ContractError::Std(StdError::generic_err(format!("{:?}", e))))?;
+    if received < cfg.proposal_min_deposit {
+        return Err(ContractError::Unauthorized {});
+    }
 
     let (status, expires_at) = if received < cfg.proposal_deposit {
         // to deposit period (pending)
