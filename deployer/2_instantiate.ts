@@ -38,6 +38,7 @@ async function main() {
         deposit_period: { time: 600 },
         voting_period: { time: 600 },
         proposal_deposit_amount: "100",
+        proposal_deposit_min_amount: "50",
       } as dao.InitMsg,
       "ION governance contract",
       "auto"
