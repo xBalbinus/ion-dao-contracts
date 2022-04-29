@@ -74,6 +74,7 @@ export interface Config {
   description: string;
   name: string;
   proposal_deposit: Uint128;
+  proposal_min_deposit: Uint128;
   threshold: Threshold;
   voting_period: Duration;
 }

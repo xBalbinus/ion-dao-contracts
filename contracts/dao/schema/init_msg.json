@@ -8,6 +8,7 @@
     "gov_token",
     "name",
     "proposal_deposit_amount",
+    "proposal_deposit_min_amount",
     "threshold",
     "voting_period"
   ],
@@ -36,6 +37,9 @@
           "$ref": "#/definitions/Uint128"
         }
       ]
+    },
+    "proposal_deposit_min_amount": {
+      "$ref": "#/definitions/Uint128"
     },
     "threshold": {
       "description": "Voting params configuration",

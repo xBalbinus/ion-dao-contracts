@@ -12,6 +12,7 @@ export interface InitMsg {
    * Deposit required to make a proposal
    */
   proposal_deposit_amount: Uint128;
+  proposal_deposit_min_amount: Uint128;
   /**
    * Voting params configuration
    */
