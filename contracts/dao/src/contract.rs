@@ -236,7 +236,7 @@ pub fn execute_deposit(
         .deposit
         .checked_add(received)
         .map_err(|e| ContractError::Std(StdError::overflow(e)))?;
-    if cfg.proposal_deposit < prop.deposit {
+    if cfg.proposal_deposit <= prop.deposit {
         // open
         prop.status = Status::Open;
         prop.vote_starts_at = Some(BlockTime {
