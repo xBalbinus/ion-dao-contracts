@@ -13,7 +13,10 @@ use crate::helpers::{
     duration_to_expiry, get_and_check_limit, get_total_staked_supply, get_voting_power_at_height,
     proposal_to_response,
 };
-use crate::msg::{ExecuteMsg, InstantiateMsg, ProposeMsg, QueryMsg, RangeOrder, VoteMsg};
+use crate::msg::{
+    ExecuteMsg, InstantiateMsg, MigrateMsg, ProposalsQueryOption, ProposeMsg, QueryMsg, RangeOrder,
+    VoteMsg,
+};
 use crate::proposal::BlockTime;
 use crate::query::{
     ConfigResponse, ProposalResponse, ProposalsResponse, TokenBalancesResponse, TokenListResponse,
@@ -21,7 +24,7 @@ use crate::query::{
 };
 use crate::state::{
     next_id, parse_id, Ballot, Config, Proposal, Votes, BALLOTS, CONFIG, DAO_PAUSED, GOV_TOKEN,
-    PROPOSALS, STAKING_CONTRACT, TREASURY_TOKENS,
+    IDX_PROPS_BY_PROPOSER, IDX_PROPS_BY_STATUS, PROPOSALS, STAKING_CONTRACT, TREASURY_TOKENS,
 };
 
 // Version info for migration info
@@ -184,6 +187,8 @@ pub fn execute_propose(
     prop.update_status(&env.block);
     let id = next_id(deps.storage)?;
     PROPOSALS.save(deps.storage, id, &prop)?;
+    IDX_PROPS_BY_STATUS.save(deps.storage, (prop.status as u8, id), &Empty {})?;
+    IDX_PROPS_BY_PROPOSER.save(deps.storage, (info.sender.clone(), id), &Empty {})?;
 
     Ok(Response::new()
         .add_attribute("action", "propose")
@@ -207,6 +212,7 @@ pub fn execute_deposit(
     }
 
     let mut prop = PROPOSALS.load(deps.storage, proposal_id)?;
+    IDX_PROPS_BY_STATUS.remove(deps.storage, (prop.status as u8, proposal_id));
     if prop.status != Status::Pending {
         return Err(ContractError::WrongDepositStatus {});
     }
@@ -247,6 +253,7 @@ pub fn execute_deposit(
     }
 
     PROPOSALS.save(deps.storage, proposal_id, &prop)?;
+    IDX_PROPS_BY_STATUS.save(deps.storage, (prop.status as u8, proposal_id), &Empty {})?;
 
     Ok(Response::new().add_attributes(vec![
         ("action", "deposit"),
@@ -274,6 +281,8 @@ pub fn execute_vote(
 
     // Ensure proposal exists and can be voted on
     let mut prop = PROPOSALS.load(deps.storage, proposal_id)?;
+    IDX_PROPS_BY_STATUS.remove(deps.storage, (prop.status as u8, proposal_id));
+
     if prop.status != Status::Open {
         return Err(ContractError::NotOpen {});
     }
@@ -312,6 +321,7 @@ pub fn execute_vote(
     prop.votes.submit(vote, vote_power);
     prop.update_status(&env.block);
     PROPOSALS.save(deps.storage, proposal_id, &prop)?;
+    IDX_PROPS_BY_STATUS.save(deps.storage, (prop.status as u8, proposal_id), &Empty {})?;
 
     Ok(Response::new()
         .add_attribute("action", "vote")
@@ -338,6 +348,7 @@ pub fn execute_execute(
 
     // Anyone can trigger this if the vote passed
     let mut prop = PROPOSALS.load(deps.storage, proposal_id)?;
+    IDX_PROPS_BY_STATUS.remove(deps.storage, (prop.status as u8, proposal_id));
     // We allow execution even after the proposal "expiration" as long as all vote come in before
     // that point. If it was approved on time, it can be executed any time.
     if prop.current_status(&env.block) != Status::Passed {
@@ -347,6 +358,7 @@ pub fn execute_execute(
     // Set it to executed
     prop.status = Status::Executed;
     PROPOSALS.save(deps.storage, proposal_id, &prop)?;
+    IDX_PROPS_BY_STATUS.save(deps.storage, (prop.status as u8, proposal_id), &Empty {})?;
 
     // Dispatch all proposed messages
     Ok(Response::new()
@@ -378,6 +390,7 @@ pub fn execute_close(
 
     // Anyone can trigger this if the vote passed
     let mut prop = PROPOSALS.load(deps.storage, proposal_id)?;
+    IDX_PROPS_BY_STATUS.remove(deps.storage, (prop.status as u8, proposal_id));
     if [Status::Executed, Status::Rejected, Status::Passed]
         .iter()
         .any(|x| *x == prop.status)
@@ -391,6 +404,7 @@ pub fn execute_close(
     // Set it to failed
     prop.status = Status::Rejected;
     PROPOSALS.save(deps.storage, proposal_id, &prop)?;
+    IDX_PROPS_BY_STATUS.save(deps.storage, (prop.status as u8, proposal_id), &Empty {})?;
 
     let mut resp = Response::new();
     if !prop.is_vetoed() {
@@ -534,7 +548,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             start,
             limit,
             order,
-        } => to_binary(&query_proposals(deps, env, start, limit, order)?),
+            query,
+        } => to_binary(&query_proposals(deps, env, start, limit, order, query)?),
         QueryMsg::ProposalCount {} => to_binary(&query_proposal_count(deps)),
 
         QueryMsg::Vote { proposal_id, voter } => to_binary(&query_vote(deps, proposal_id, voter)?),
@@ -665,6 +680,7 @@ fn query_proposals(
     start: Option<u64>,
     limit: Option<u32>,
     order: Option<RangeOrder>,
+    query: Option<ProposalsQueryOption>,
 ) -> StdResult<ProposalsResponse> {
     let limit = get_and_check_limit(limit, MAX_LIMIT, DEFAULT_LIMIT)? as usize;
     let order = order.unwrap_or(RangeOrder::Asc).into();
@@ -673,18 +689,42 @@ fn query_proposals(
         Order::Descending => (None, start.map(Bound::exclusive_int)),
     };
 
-    let props: StdResult<Vec<_>> = PROPOSALS
-        .range_raw(deps.storage, min, max, order)
-        .take(limit)
-        .map(|item| {
-            let (k, prop) = item.unwrap();
-            Ok(proposal_to_response(
-                &env.block,
-                parse_id(k.as_slice())?,
-                prop,
-            ))
-        })
-        .collect();
+    let props: StdResult<Vec<_>> = match query {
+        Some(q) => {
+            let base = match q {
+                ProposalsQueryOption::Status { status } => IDX_PROPS_BY_STATUS
+                    .prefix(status as u8)
+                    .range(deps.storage, min, max, order)
+                    .take(limit),
+                ProposalsQueryOption::Proposer { proposer } => IDX_PROPS_BY_PROPOSER
+                    .prefix(proposer)
+                    .range(deps.storage, min, max, order)
+                    .take(limit),
+            };
+
+            base.map(|item| {
+                let (k, _) = item.unwrap();
+                Ok(proposal_to_response(
+                    &env.block,
+                    k,
+                    PROPOSALS.load(deps.storage, k).unwrap(),
+                ))
+            })
+            .collect()
+        }
+        None => PROPOSALS
+            .range_raw(deps.storage, min, max, order)
+            .take(limit)
+            .map(|item| {
+                let (k, prop) = item.unwrap();
+                Ok(proposal_to_response(
+                    &env.block,
+                    parse_id(k.as_slice())?,
+                    prop,
+                ))
+            })
+            .collect(),
+    };
 
     Ok(ProposalsResponse { proposals: props? })
 }
@@ -758,4 +798,10 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
         }
         _ => Err(ContractError::UnknownReplyId { id: msg.id }),
     }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    // No state migrations performed, just returned a Response
+    Ok(Response::default())
 }

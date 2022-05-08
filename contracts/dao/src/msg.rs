@@ -103,6 +103,13 @@ impl From<RangeOrder> for Order {
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum ProposalsQueryOption {
+    Status { status: cw3::Status },
+    Proposer { proposer: Addr },
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     /// Returns Config
@@ -123,6 +130,7 @@ pub enum QueryMsg {
         start: Option<u64>,
         limit: Option<u32>,
         order: Option<RangeOrder>,
+        query: Option<ProposalsQueryOption>,
     },
     /// Returns the number of proposals in the DAO (u64)
     ProposalCount {},
@@ -136,6 +144,9 @@ pub enum QueryMsg {
         order: Option<RangeOrder>,
     },
 }
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct MigrateMsg {}
 
 #[cfg(test)]
 mod tests {
