@@ -545,11 +545,11 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
         QueryMsg::Proposal { proposal_id } => to_binary(&query_proposal(deps, env, proposal_id)?),
         QueryMsg::Proposals {
+            query,
             start,
             limit,
             order,
-            query,
-        } => to_binary(&query_proposals(deps, env, start, limit, order, query)?),
+        } => to_binary(&query_proposals(deps, env, query, start, limit, order)?),
         QueryMsg::ProposalCount {} => to_binary(&query_proposal_count(deps)),
 
         QueryMsg::Vote { proposal_id, voter } => to_binary(&query_vote(deps, proposal_id, voter)?),
@@ -677,10 +677,10 @@ fn query_proposal(deps: Deps, env: Env, id: u64) -> StdResult<ProposalResponse> 
 fn query_proposals(
     deps: Deps,
     env: Env,
+    query: ProposalsQueryOption,
     start: Option<u64>,
     limit: Option<u32>,
     order: Option<RangeOrder>,
-    query: Option<ProposalsQueryOption>,
 ) -> StdResult<ProposalsResponse> {
     let limit = get_and_check_limit(limit, MAX_LIMIT, DEFAULT_LIMIT)? as usize;
     let order = order.unwrap_or(RangeOrder::Asc).into();
@@ -690,19 +690,11 @@ fn query_proposals(
     };
 
     let props: StdResult<Vec<_>> = match query {
-        Some(q) => {
-            let base = match q {
-                ProposalsQueryOption::Status { status } => IDX_PROPS_BY_STATUS
-                    .prefix(status as u8)
-                    .range(deps.storage, min, max, order)
-                    .take(limit),
-                ProposalsQueryOption::Proposer { proposer } => IDX_PROPS_BY_PROPOSER
-                    .prefix(proposer)
-                    .range(deps.storage, min, max, order)
-                    .take(limit),
-            };
-
-            base.map(|item| {
+        ProposalsQueryOption::FindByStatus { status } => IDX_PROPS_BY_STATUS
+            .prefix(status as u8)
+            .range(deps.storage, min, max, order)
+            .take(limit)
+            .map(|item| {
                 let (k, _) = item.unwrap();
                 Ok(proposal_to_response(
                     &env.block,
@@ -710,9 +702,21 @@ fn query_proposals(
                     PROPOSALS.load(deps.storage, k).unwrap(),
                 ))
             })
-            .collect()
-        }
-        None => PROPOSALS
+            .collect(),
+        ProposalsQueryOption::FindByProposer { proposer } => IDX_PROPS_BY_PROPOSER
+            .prefix(proposer)
+            .range(deps.storage, min, max, order)
+            .take(limit)
+            .map(|item| {
+                let (k, _) = item.unwrap();
+                Ok(proposal_to_response(
+                    &env.block,
+                    k,
+                    PROPOSALS.load(deps.storage, k).unwrap(),
+                ))
+            })
+            .collect(),
+        ProposalsQueryOption::Everything {} => PROPOSALS
             .range_raw(deps.storage, min, max, order)
             .take(limit)
             .map(|item| {

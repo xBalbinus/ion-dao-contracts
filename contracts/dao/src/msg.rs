@@ -105,8 +105,9 @@ impl From<RangeOrder> for Order {
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum ProposalsQueryOption {
-    Status { status: cw3::Status },
-    Proposer { proposer: Addr },
+    FindByStatus { status: cw3::Status },
+    FindByProposer { proposer: Addr },
+    Everything {},
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
@@ -127,10 +128,10 @@ pub enum QueryMsg {
     Proposal { proposal_id: u64 },
     /// Returns ProposalListResponse
     Proposals {
+        query: ProposalsQueryOption,
         start: Option<u64>,
         limit: Option<u32>,
         order: Option<RangeOrder>,
-        query: Option<ProposalsQueryOption>,
     },
     /// Returns the number of proposals in the DAO (u64)
     ProposalCount {},
