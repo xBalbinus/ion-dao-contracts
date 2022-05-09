@@ -103,7 +103,7 @@ impl From<RangeOrder> for Order {
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum ProposalsQueryOption {
     FindByStatus { status: cw3::Status },
     FindByProposer { proposer: Addr },

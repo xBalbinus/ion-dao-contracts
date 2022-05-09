@@ -58,13 +58,13 @@ export type QueryMsg =
 export type RangeOrder = "asc" | "desc";
 export type ProposalsQueryOption =
   | {
-      findbystatus: {
+      find_by_status: {
         status: Status;
         [k: string]: unknown;
       };
     }
   | {
-      findbyproposer: {
+      find_by_proposer: {
         proposer: Addr;
         [k: string]: unknown;
       };
