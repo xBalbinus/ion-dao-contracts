@@ -103,6 +103,9 @@
       "properties": {
         "proposals": {
           "type": "object",
+          "required": [
+            "query"
+          ],
           "properties": {
             "limit": {
               "type": [
@@ -121,6 +124,9 @@
                   "type": "null"
                 }
               ]
+            },
+            "query": {
+              "$ref": "#/definitions/ProposalsQueryOption"
             },
             "start": {
               "type": [
@@ -256,11 +262,77 @@
         }
       ]
     },
+    "ProposalsQueryOption": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "findbystatus"
+          ],
+          "properties": {
+            "findbystatus": {
+              "type": "object",
+              "required": [
+                "status"
+              ],
+              "properties": {
+                "status": {
+                  "$ref": "#/definitions/Status"
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "findbyproposer"
+          ],
+          "properties": {
+            "findbyproposer": {
+              "type": "object",
+              "required": [
+                "proposer"
+              ],
+              "properties": {
+                "proposer": {
+                  "$ref": "#/definitions/Addr"
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "everything"
+          ],
+          "properties": {
+            "everything": {
+              "type": "object"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
     "RangeOrder": {
       "type": "string",
       "enum": [
         "asc",
         "desc"
+      ]
+    },
+    "Status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "open",
+        "rejected",
+        "passed",
+        "executed"
       ]
     }
   }

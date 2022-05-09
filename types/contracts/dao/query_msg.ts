@@ -1,4 +1,4 @@
-import { Denom } from "./shared-types";
+import {Addr, Denom, Status} from "./shared-types";
 
 export type QueryMsg =
   | {
@@ -29,6 +29,7 @@ export type QueryMsg =
       proposals: {
         limit?: number | null;
         order?: RangeOrder | null;
+        query: ProposalsQueryOption;
         start?: number | null;
         [k: string]: unknown;
       };
@@ -55,3 +56,21 @@ export type QueryMsg =
       };
     };
 export type RangeOrder = "asc" | "desc";
+export type ProposalsQueryOption =
+  | {
+      findbystatus: {
+        status: Status;
+        [k: string]: unknown;
+      };
+    }
+  | {
+      findbyproposer: {
+        proposer: Addr;
+        [k: string]: unknown;
+      };
+    }
+  | {
+      everything: {
+        [k: string]: unknown;
+      };
+    };
