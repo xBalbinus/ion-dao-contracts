@@ -1,5 +1,22 @@
 import { Duration, Threshold, Uint128 } from "./shared-types";
 
+export type GovToken =
+  | {
+      create: {
+        denom: string;
+        label: string;
+        stake_contract_code_id: number;
+        unstaking_duration?: Duration | null;
+        [k: string]: unknown;
+      };
+    }
+  | {
+      reuse: {
+        stake_contract: string;
+        [k: string]: unknown;
+      };
+    };
+
 export interface InitMsg {
   deposit_period: Duration;
   description: string;
@@ -18,12 +35,5 @@ export interface InitMsg {
    */
   threshold: Threshold;
   voting_period: Duration;
-  [k: string]: unknown;
-}
-export interface GovToken {
-  denom: string;
-  label: string;
-  stake_contract_code_id: number;
-  unstaking_duration?: Duration | null;
   [k: string]: unknown;
 }

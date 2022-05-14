@@ -1,4 +1,4 @@
-import {Addr, Denom, Status} from "./shared-types";
+import { Addr, Denom, Status } from "./shared-types";
 
 export type QueryMsg =
   | {
