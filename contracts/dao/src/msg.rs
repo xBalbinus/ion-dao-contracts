@@ -29,11 +29,17 @@ pub struct InstantiateMsg {
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
-pub struct GovToken {
-    pub denom: String,
-    pub label: String,
-    pub stake_contract_code_id: u64,
-    pub unstaking_duration: Option<Duration>,
+#[serde(rename_all = "snake_case")]
+pub enum GovToken {
+    Create {
+        denom: String,
+        label: String,
+        stake_contract_code_id: u64,
+        unstaking_duration: Option<Duration>,
+    },
+    Reuse {
+        stake_contract: String,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

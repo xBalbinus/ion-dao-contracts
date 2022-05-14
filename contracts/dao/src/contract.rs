@@ -10,12 +10,12 @@ use cw_utils::{maybe_addr, parse_reply_instantiate_data, Expiration, NativeBalan
 
 use crate::error::ContractError;
 use crate::helpers::{
-    duration_to_expiry, get_and_check_limit, get_total_staked_supply, get_voting_power_at_height,
-    proposal_to_response,
+    duration_to_expiry, get_and_check_limit, get_config, get_total_staked_supply,
+    get_voting_power_at_height, proposal_to_response,
 };
 use crate::msg::{
-    ExecuteMsg, InstantiateMsg, MigrateMsg, ProposalsQueryOption, ProposeMsg, QueryMsg, RangeOrder,
-    VoteMsg,
+    ExecuteMsg, GovToken, InstantiateMsg, MigrateMsg, ProposalsQueryOption, ProposeMsg, QueryMsg,
+    RangeOrder, VoteMsg,
 };
 use crate::proposal::BlockTime;
 use crate::query::{
@@ -60,31 +60,54 @@ pub fn instantiate(
     };
     CONFIG.save(deps.storage, &cfg)?;
 
-    // Add native token to map of TREASURY TOKENS
-    TREASURY_TOKENS.save(
-        deps.storage,
-        ("native", msg.gov_token.denom.as_str()),
-        &Empty {},
-    )?;
+    match msg.gov_token {
+        GovToken::Create {
+            denom,
+            label,
+            stake_contract_code_id,
+            unstaking_duration,
+        } => {
+            // Add native token to map of TREASURY TOKENS
+            TREASURY_TOKENS.save(deps.storage, ("native", denom.as_str()), &Empty {})?;
 
-    // Save gov token
-    GOV_TOKEN.save(deps.storage, &msg.gov_token.denom)?;
+            // Save gov token
+            GOV_TOKEN.save(deps.storage, &denom)?;
 
-    // Instantiate staking contract with DAO as admin
-    Ok(Response::new().add_submessage(SubMsg::reply_on_success(
-        WasmMsg::Instantiate {
-            code_id: msg.gov_token.stake_contract_code_id,
-            funds: vec![],
-            admin: Some(env.contract.address.to_string()),
-            label: msg.gov_token.label,
-            msg: to_binary(&ion_stake::msg::InstantiateMsg {
-                admin: Some(env.contract.address),
-                denom: msg.gov_token.denom,
-                unstaking_duration: msg.gov_token.unstaking_duration,
-            })?,
-        },
-        INSTANTIATE_STAKING_CONTRACT_REPLY_ID,
-    )))
+            // Instantiate staking contract with DAO as admin
+            Ok(Response::new().add_submessage(SubMsg::reply_on_success(
+                WasmMsg::Instantiate {
+                    code_id: stake_contract_code_id,
+                    funds: vec![],
+                    admin: Some(env.contract.address.to_string()),
+                    label,
+                    msg: to_binary(&ion_stake::msg::InstantiateMsg {
+                        admin: Some(env.contract.address),
+                        denom,
+                        unstaking_duration,
+                    })?,
+                },
+                INSTANTIATE_STAKING_CONTRACT_REPLY_ID,
+            )))
+        }
+
+        GovToken::Reuse { stake_contract } => {
+            let addr = deps.api.addr_validate(stake_contract.as_str())?;
+            STAKING_CONTRACT.save(deps.storage, &addr)?;
+
+            let staking_config = get_config(deps.as_ref())?;
+            // Add native token to map of TREASURY TOKENS
+            TREASURY_TOKENS.save(
+                deps.storage,
+                ("native", staking_config.denom.as_str()),
+                &Empty {},
+            )?;
+
+            // Save gov token
+            GOV_TOKEN.save(deps.storage, &staking_config.denom)?;
+
+            Ok(Response::new())
+        }
+    }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

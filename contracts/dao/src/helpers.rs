@@ -64,6 +64,16 @@ pub fn get_staked_balance(deps: Deps, address: Addr) -> StdResult<Uint128> {
     Ok(res.balance)
 }
 
+pub fn get_config(deps: Deps) -> StdResult<ion_stake::msg::GetConfigResponse> {
+    let staking_contract = STAKING_CONTRACT.load(deps.storage)?;
+
+    let res: ion_stake::msg::GetConfigResponse = deps
+        .querier
+        .query_wasm_smart(staking_contract, &ion_stake::msg::QueryMsg::GetConfig {})?;
+
+    Ok(res)
+}
+
 pub fn get_voting_power_at_height(deps: Deps, address: Addr, height: u64) -> StdResult<Uint128> {
     let staking_contract = STAKING_CONTRACT.load(deps.storage)?;
 
