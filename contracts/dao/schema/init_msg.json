@@ -93,35 +93,68 @@
       ]
     },
     "GovToken": {
-      "type": "object",
-      "required": [
-        "denom",
-        "label",
-        "stake_contract_code_id"
-      ],
-      "properties": {
-        "denom": {
-          "type": "string"
-        },
-        "label": {
-          "type": "string"
-        },
-        "stake_contract_code_id": {
-          "type": "integer",
-          "format": "uint64",
-          "minimum": 0.0
-        },
-        "unstaking_duration": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Duration"
-            },
-            {
-              "type": "null"
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "create"
+          ],
+          "properties": {
+            "create": {
+              "type": "object",
+              "required": [
+                "denom",
+                "label",
+                "stake_contract_code_id"
+              ],
+              "properties": {
+                "denom": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "stake_contract_code_id": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                },
+                "unstaking_duration": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/Duration"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
             }
-          ]
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "reuse"
+          ],
+          "properties": {
+            "reuse": {
+              "type": "object",
+              "required": [
+                "stake_contract"
+              ],
+              "properties": {
+                "stake_contract": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "additionalProperties": false
         }
-      }
+      ]
     },
     "Threshold": {
       "description": "Declares a `quorum` of the total votes that must participate in the election in order for the vote to be considered at all. See `ThresholdResponse.ThresholdQuorum` in the cw3 spec for details.",
