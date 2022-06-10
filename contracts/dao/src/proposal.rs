@@ -179,18 +179,17 @@ impl Proposal {
         if self.votes.total() < votes_needed(self.total_weight, self.threshold.quorum) {
             return false;
         }
-        if self.vote_ends_at.is_expired(block) {
+        let opinions = if self.vote_ends_at.is_expired(block) {
             // If expired, we compare Yes votes against the total number of votes (minus abstain).
-            let opinions = self.votes.total() - self.votes.abstain;
-            self.votes.veto < votes_needed(self.votes.total(), self.threshold.veto_threshold)
-                && self.votes.yes >= votes_needed(opinions, self.threshold.threshold)
+            self.votes.total() - self.votes.abstain
         } else {
             // If not expired, we must assume all non-votes will be cast as No.
             // We compare threshold against the total weight (minus abstain).
-            let possible_opinions = self.total_weight - self.votes.abstain;
-            self.votes.veto < votes_needed(self.votes.total(), self.threshold.veto_threshold)
-                && self.votes.yes >= votes_needed(possible_opinions, self.threshold.threshold)
-        }
+            self.total_weight - self.votes.abstain
+        };
+
+        self.votes.veto < votes_needed(self.votes.total(), self.threshold.veto_threshold)
+            && self.votes.yes >= votes_needed(opinions, self.threshold.threshold)
     }
 
     pub fn is_vetoed(&self) -> bool {
