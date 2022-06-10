@@ -1,7 +1,8 @@
-use cosmwasm_std::{Addr, CosmosMsg, Empty, Order, Uint128};
+use cosmwasm_std::{Addr, CosmosMsg, Order, Uint128};
 use cw20::Denom;
 use cw3::Vote;
 use cw_utils::{Duration, Expiration};
+use osmo_bindings::OsmosisMsg;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -47,7 +48,7 @@ pub struct ProposeMsg {
     pub title: String,
     pub link: String,
     pub description: String,
-    pub msgs: Vec<CosmosMsg<Empty>>,
+    pub msgs: Vec<CosmosMsg<OsmosisMsg>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -118,6 +119,22 @@ pub enum ProposalsQueryOption {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 #[serde(rename_all = "snake_case")]
+pub enum DepositsQueryOption {
+    FindByProposal {
+        proposal_id: u64,
+        start: Option<String>,
+    },
+    FindByDepositor {
+        depositor: String,
+        start: Option<u64>,
+    },
+    Everything {
+        start: Option<(u64, String)>,
+    },
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     /// Returns Config
     GetConfig {},
@@ -131,7 +148,9 @@ pub enum QueryMsg {
     },
 
     /// Returns ProposalResponse
-    Proposal { proposal_id: u64 },
+    Proposal {
+        proposal_id: u64,
+    },
     /// Returns ProposalListResponse
     Proposals {
         query: ProposalsQueryOption,
@@ -142,11 +161,25 @@ pub enum QueryMsg {
     /// Returns the number of proposals in the DAO (u64)
     ProposalCount {},
     /// Returns VoteResponse
-    Vote { proposal_id: u64, voter: String },
+    Vote {
+        proposal_id: u64,
+        voter: String,
+    },
     /// Returns VoteListResponse
     Votes {
         proposal_id: u64,
         start: Option<String>,
+        limit: Option<u32>,
+        order: Option<RangeOrder>,
+    },
+
+    Deposit {
+        proposal_id: u64,
+        depositor: String,
+    },
+
+    Deposits {
+        query: DepositsQueryOption,
         limit: Option<u32>,
         order: Option<RangeOrder>,
     },

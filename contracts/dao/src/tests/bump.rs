@@ -1,14 +1,11 @@
 // use crate::contract::{CONTRACT_NAME, CONTRACT_VERSION};
 // use crate::error::ContractError;
-// use crate::msg::{
-//     ExecuteMsg, GovTokenInstantiateMsg, GovTokenMsg, InstantiateMsg, ProposeMsg, QueryMsg,
-//     Threshold, VoteMsg,
-// };
+// use crate::msg::{ExecuteMsg, GovToken, InstantiateMsg, ProposeMsg, QueryMsg, VoteMsg};
 // use crate::query::{
-//     BalancesResponse, ConfigResponse, ProposalListResponse, ProposalResponse, ThresholdResponse,
-//     TokenListResponse, VoteInfo, VoteListResponse, VoteResponse, VoteTallyResponse,
+//     ConfigResponse, ProposalResponse, ProposalsResponse, TokenListResponse, VoteInfo, VoteResponse,
 // };
 // use crate::state::{Config, Votes};
+// use crate::tests::suite::Suite;
 // use cosmwasm_std::{
 //     coin, coins, to_binary, Addr, BankMsg, BlockInfo, Coin, CosmosMsg, Decimal, Empty, Timestamp,
 //     Uint128, WasmMsg,
@@ -21,7 +18,6 @@
 // use cw3::{Status, Vote};
 // use cw_multi_test::{next_block, App, BankSudo, Contract, ContractWrapper, Executor, SudoMsg};
 // use cw_utils::{Duration, Expiration};
-// use stake::msg::ReceiveMsg;
 // use std::borrow::BorrowMut;
 //
 // const OWNER: &str = "admin0001";
@@ -33,34 +29,6 @@
 //
 // const NATIVE_TOKEN_DENOM: &str = "ustars";
 // const INITIAL_BALANCE: u128 = 4000000;
-//
-// pub fn contract_dao() -> Box<dyn Contract<Empty>> {
-//     let contract = ContractWrapper::new(
-//         crate::contract::execute,
-//         crate::contract::instantiate,
-//         crate::contract::query,
-//     )
-//     .with_reply(crate::contract::reply);
-//     Box::new(contract)
-// }
-//
-// pub fn contract_cw20_gov() -> Box<dyn Contract<Empty>> {
-//     let contract = ContractWrapper::new(
-//         cw20_base::contract::execute,
-//         cw20_base::contract::instantiate,
-//         cw20_base::contract::query,
-//     );
-//     Box::new(contract)
-// }
-//
-// pub fn contract_staking() -> Box<dyn Contract<Empty>> {
-//     let contract = ContractWrapper::new(
-//         stake::contract::execute,
-//         stake::contract::instantiate,
-//         stake::contract::query,
-//     );
-//     Box::new(contract)
-// }
 //
 // fn mock_app() -> App {
 //     App::default()

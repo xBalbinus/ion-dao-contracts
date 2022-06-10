@@ -40,29 +40,31 @@ where
     pub title: String,
     pub link: String,
     pub description: String,
-    pub proposer: Addr,
+    pub proposer: String,
     pub msgs: Vec<CosmosMsg<T>>,
     pub status: Status,
 
     // time
-    pub deposit_starts_at: BlockTime,
-    pub vote_starts_at: Option<BlockTime>,
-    pub expires_at: Expiration,
+    pub submitted_at: BlockTime,
+    pub deposit_ends_at: Expiration,
+    pub vote_starts_at: BlockTime,
+    pub vote_ends_at: Expiration,
 
-    // vote tally
+    // vote
     pub votes: Votes,
     pub quorum: Decimal,
     pub threshold: Threshold,
     pub total_votes: Uint128,
     pub total_weight: Uint128,
-
-    // deposit
-    pub deposit_amount: Uint128,
+    pub total_deposit: Uint128,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
-pub struct ProposalsResponse {
-    pub proposals: Vec<ProposalResponse>,
+pub struct ProposalsResponse<T = Empty>
+where
+    T: Clone + fmt::Debug + PartialEq + JsonSchema,
+{
+    pub proposals: Vec<ProposalResponse<T>>,
 }
 
 /// Returns the vote (opinion as well as weight counted) as well as
@@ -82,4 +84,16 @@ pub struct VoteResponse {
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct VotesResponse {
     pub votes: Vec<VoteInfo>,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct DepositResponse {
+    pub proposal_id: u64,
+    pub depositor: String,
+    pub amount: Uint128,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct DepositsResponse {
+    pub deposits: Vec<DepositResponse>,
 }

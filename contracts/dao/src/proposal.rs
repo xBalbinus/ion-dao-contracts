@@ -1,9 +1,11 @@
-use cosmwasm_std::{Addr, BlockInfo, CosmosMsg, Decimal, Empty, Timestamp, Uint128};
+use cosmwasm_std::{Addr, BlockInfo, CosmosMsg, Decimal, Timestamp, Uint128};
 use cw3::{Status, Vote};
-use cw_utils::Expiration;
+use cw_utils::{Duration, Expiration};
+use osmo_bindings::OsmosisMsg;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::helpers::duration_to_expiry;
 use crate::threshold::Threshold;
 
 // we multiply by this when calculating needed_votes in order to round up properly
@@ -54,10 +56,19 @@ impl Votes {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug, Default)]
 pub struct BlockTime {
     pub height: u64,
     pub time: Timestamp,
+}
+
+impl Into<BlockTime> for BlockInfo {
+    fn into(self) -> BlockTime {
+        BlockTime {
+            height: self.height.clone(),
+            time: self.time.clone(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
@@ -70,12 +81,17 @@ pub struct Proposal {
     pub description: String,
     /// Address of proposer
     pub proposer: Addr,
-    /// Starting time / height information
-    pub deposit_starts_at: BlockTime,
-    pub vote_starts_at: Option<BlockTime>,
-    pub expires_at: Expiration,
-    pub msgs: Vec<CosmosMsg<Empty>>,
+    /// Current status of this proposal
     pub status: Status,
+    /// List of messages to execute
+    pub msgs: Vec<CosmosMsg<OsmosisMsg>>,
+
+    /// Starting time / height information
+    pub submitted_at: BlockTime,
+    pub deposit_ends_at: Expiration,
+    pub vote_starts_at: BlockTime,
+    pub vote_ends_at: Expiration,
+
     /// Pass requirements
     pub threshold: Threshold,
     /// The total weight when the proposal started (used to calculate percentages)
@@ -83,10 +99,39 @@ pub struct Proposal {
     /// summary of existing votes
     pub votes: Votes,
     /// Amount of the native governance token required for voting
-    pub deposit: Uint128,
+    pub total_deposit: Uint128,
+    pub deposit_base_amount: Uint128,
+}
+
+impl Default for Proposal {
+    fn default() -> Self {
+        Self {
+            title: "".to_string(),
+            link: "".to_string(),
+            description: "".to_string(),
+            proposer: Addr::unchecked(""),
+            status: Status::Pending,
+            msgs: vec![],
+            submitted_at: Default::default(),
+            deposit_ends_at: Default::default(),
+            vote_starts_at: Default::default(),
+            vote_ends_at: Default::default(),
+            threshold: Default::default(),
+            total_weight: Default::default(),
+            votes: Default::default(),
+            total_deposit: Default::default(),
+            deposit_base_amount: Default::default(),
+        }
+    }
 }
 
 impl Proposal {
+    pub fn activate_voting_period(&mut self, block_time: BlockTime, voting_period: &Duration) {
+        self.status = Status::Open;
+        self.vote_starts_at = block_time;
+        self.vote_ends_at = duration_to_expiry(&self.vote_starts_at, voting_period);
+    }
+
     /// current_status is non-mutable and returns what the status should be.
     /// (designed for queries)
     pub fn current_status(&self, block: &BlockInfo) -> Status {
@@ -95,17 +140,24 @@ impl Proposal {
         match status {
             // if pending, check if voting is opened or timed out
             Status::Pending => {
-                if self.expires_at.is_expired(block) {
+                // check total deposit amount exceeds deposit base amount
+                if self.deposit_base_amount < self.total_deposit {
+                    status = Status::Open;
+                } else if self.deposit_ends_at.is_expired(block) {
+                    // if not and deposit period ended, change proposal status to rejected.
                     status = Status::Rejected;
                 }
             }
+
             // if open, check if voting is passed or timed out
             Status::Open => {
-                if self.is_passed(block) {
-                    status = Status::Passed;
-                }
-                if self.expires_at.is_expired(block) {
-                    status = Status::Rejected;
+                // check voting period has ended
+                if self.vote_ends_at.is_expired(block) {
+                    if self.is_passed(block) {
+                        status = Status::Passed;
+                    } else {
+                        status = Status::Rejected;
+                    }
                 }
             }
             _ => {} // do nothing
@@ -120,22 +172,24 @@ impl Proposal {
         self.status = self.current_status(block);
     }
 
-    // returns true iff this proposal is sure to pass (even before expiration if no future
+    // returns true if this proposal is sure to pass (even before expiration if no future
     // sequence of possible votes can cause it to fail)
     pub fn is_passed(&self, block: &BlockInfo) -> bool {
         // we always require the quorum
         if self.votes.total() < votes_needed(self.total_weight, self.threshold.quorum) {
             return false;
         }
-        if self.expires_at.is_expired(block) {
+        if self.vote_ends_at.is_expired(block) {
             // If expired, we compare Yes votes against the total number of votes (minus abstain).
             let opinions = self.votes.total() - self.votes.abstain;
-            self.votes.yes >= votes_needed(opinions, self.threshold.threshold)
+            self.votes.veto < votes_needed(self.votes.total(), self.threshold.veto_threshold)
+                && self.votes.yes >= votes_needed(opinions, self.threshold.threshold)
         } else {
             // If not expired, we must assume all non-votes will be cast as No.
             // We compare threshold against the total weight (minus abstain).
             let possible_opinions = self.total_weight - self.votes.abstain;
-            self.votes.yes >= votes_needed(possible_opinions, self.threshold.threshold)
+            self.votes.veto < votes_needed(self.votes.total(), self.threshold.veto_threshold)
+                && self.votes.yes >= votes_needed(possible_opinions, self.threshold.threshold)
         }
     }
 
@@ -218,18 +272,23 @@ mod test {
             link: "Test".to_string(),
             description: "Info".to_string(),
             proposer: Addr::unchecked("test"),
-            deposit_starts_at: BlockTime {
+            submitted_at: BlockTime {
                 height: 100,
                 time: Default::default(),
             },
-            vote_starts_at: None,
-            expires_at: expires,
+            deposit_ends_at: Expiration::AtHeight(block.height - 20),
+            vote_starts_at: BlockTime {
+                height: block.height - 10,
+                time: Default::default(),
+            },
+            vote_ends_at: expires,
             msgs: vec![],
             status: Status::Open,
             threshold,
             total_weight,
             votes,
-            deposit: Uint128::zero(),
+            total_deposit: Default::default(),
+            deposit_base_amount: Default::default(),
         };
         prop.is_passed(&block)
     }
