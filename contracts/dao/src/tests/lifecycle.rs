@@ -559,22 +559,23 @@ mod close {
     #[test]
     fn should_refund_work() {
         let mut suite = SuiteBuilder::new()
-            .with_staked(vec![("tester0", 100u128)])
+            .with_staked(vec![("tester0", 70u128), ("tester1", 30u128)])
             .add_proposal("title", "link", "desc", vec![]) // 1
             .add_proposal("title", "link", "desc", vec![]) // 2
             .build();
 
         suite.vote("tester0", 1, Vote::No).unwrap();
-        // suite.vote("tester0", 2, Vote::Abstain).unwrap(); // TODO: fix abstain
+        suite.vote("tester0", 2, Vote::Abstain).unwrap();
+        suite.vote("tester1", 2, Vote::No).unwrap();
         suite.app().advance_blocks(10);
 
         let resp = suite.close_proposal("owner", 1).unwrap();
         assert_event_attrs(resp.custom_attrs(1), "owner", 1, "refund");
         assert!(suite.check_balance("owner", 100u128));
 
-        // let resp = suite.close_proposal("owner", 2).unwrap();
-        // assert_event_attrs(resp.custom_attrs(1), "owner", 2, "refund");
-        // assert!(suite.check_balance("owner", 200u128));
+        let resp = suite.close_proposal("owner", 2).unwrap();
+        assert_event_attrs(resp.custom_attrs(1), "owner", 2, "refund");
+        assert!(suite.check_balance("owner", 200u128));
     }
 
     #[test]
