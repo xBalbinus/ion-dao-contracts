@@ -1,18 +1,26 @@
+use cosmwasm_std::{
+    Addr, BankMsg, Binary, coins, Env, MessageInfo, StdError, StdResult, to_binary, Uint128,
+};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{
-    coins, to_binary, Addr, BankMsg, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response,
-    StdError, StdResult, Uint128,
-};
 use cw2::set_contract_version;
+use osmo_bindings::{OsmosisMsg, OsmosisQuery};
 
+use crate::ContractError;
 use crate::msg::{
     ClaimsResponse, Duration, ExecuteMsg, GetConfigResponse, InstantiateMsg, QueryMsg,
     StakedBalanceAtHeightResponse, StakedValueResponse, TotalStakedAtHeightResponse,
     TotalValueResponse,
 };
-use crate::state::{Config, BALANCE, CLAIMS, CONFIG, MAX_CLAIMS, STAKED_BALANCES, STAKED_TOTAL};
-use crate::ContractError;
+use crate::state::{BALANCE, CLAIMS, Config, CONFIG, MAX_CLAIMS, STAKED_BALANCES, STAKED_TOTAL};
+
+/// type aliases
+pub type Response = cosmwasm_std::Response<OsmosisMsg>;
+pub type SubMsg = cosmwasm_std::SubMsg<OsmosisMsg>;
+pub type CosmosMsg = cosmwasm_std::CosmosMsg<OsmosisMsg>;
+pub type Deps<'a> = cosmwasm_std::Deps<'a, OsmosisQuery>;
+pub type DepsMut<'a> = cosmwasm_std::DepsMut<'a, OsmosisQuery>;
+pub type QuerierWrapper<'a> = cosmwasm_std::QuerierWrapper<'a, OsmosisQuery>;
 
 const CONTRACT_NAME: &str = "crates.io:ion-stake";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -23,7 +31,7 @@ pub fn instantiate(
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> Result<Response<Empty>, ContractError> {
+) -> Result<Response, ContractError> {
     let admin = match msg.admin {
         Some(admin) => Some(deps.api.addr_validate(admin.as_str())?),
         None => None,
@@ -46,7 +54,7 @@ pub fn execute(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response<Empty>, ContractError> {
+) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::Stake {} => {
             let denom = CONFIG.load(deps.storage)?.denom;
