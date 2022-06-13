@@ -227,6 +227,70 @@
         }
       },
       "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "deposit"
+      ],
+      "properties": {
+        "deposit": {
+          "type": "object",
+          "required": [
+            "depositor",
+            "proposal_id"
+          ],
+          "properties": {
+            "depositor": {
+              "type": "string"
+            },
+            "proposal_id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "deposits"
+      ],
+      "properties": {
+        "deposits": {
+          "type": "object",
+          "required": [
+            "query"
+          ],
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "order": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/RangeOrder"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "query": {
+              "$ref": "#/definitions/DepositsQueryOption"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
     }
   ],
   "definitions": {
@@ -256,6 +320,98 @@
           "properties": {
             "cw20": {
               "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "DepositsQueryOption": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "find_by_proposal"
+          ],
+          "properties": {
+            "find_by_proposal": {
+              "type": "object",
+              "required": [
+                "proposal_id"
+              ],
+              "properties": {
+                "proposal_id": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                },
+                "start": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "find_by_depositor"
+          ],
+          "properties": {
+            "find_by_depositor": {
+              "type": "object",
+              "required": [
+                "depositor"
+              ],
+              "properties": {
+                "depositor": {
+                  "type": "string"
+                },
+                "start": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "everything"
+          ],
+          "properties": {
+            "everything": {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": [
+                    {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ],
+                  "maxItems": 2,
+                  "minItems": 2
+                }
+              }
             }
           },
           "additionalProperties": false
