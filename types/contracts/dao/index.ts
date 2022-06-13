@@ -4,6 +4,9 @@ export * from "./ballot";
 export * from "./config_response";
 // dedup emptied this file
 // export * from "./config";
+// dedup emptied this file
+// export * from "./deposit_response";
+export * from "./deposits_response";
 export * from "./execute_msg";
 export * from "./init_msg";
 export * from "./proposal_response";

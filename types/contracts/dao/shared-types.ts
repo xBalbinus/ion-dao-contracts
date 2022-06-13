@@ -87,12 +87,18 @@ export interface Threshold {
   threshold: Decimal;
   veto_threshold: Decimal;
 }
-export type CosmosMsgFor_Empty =
+export interface DepositResponse {
+  [k: string]: unknown;
+  amount: Uint128;
+  depositor: string;
+  proposal_id: number;
+}
+export type CosmosMsgFor_OsmosisMsg =
   | {
       bank: BankMsg;
     }
   | {
-      custom: Empty;
+      custom: OsmosisMsg;
     }
   | {
       staking: StakingMsg;
@@ -101,7 +107,20 @@ export type CosmosMsgFor_Empty =
       distribution: DistributionMsg;
     }
   | {
+      stargate: {
+        type_url: string;
+        value: Binary;
+        [k: string]: unknown;
+      };
+    }
+  | {
+      ibc: IbcMsg;
+    }
+  | {
       wasm: WasmMsg;
+    }
+  | {
+      gov: GovMsg;
     };
 /**
  * The message types of the bank module.
@@ -119,6 +138,32 @@ export type BankMsg =
   | {
       burn: {
         amount: Coin[];
+        [k: string]: unknown;
+      };
+    };
+/**
+ * A number of Custom messages that can call into the Osmosis bindings
+ */
+export type OsmosisMsg = {
+  swap: {
+    amount: SwapAmountWithLimit;
+    first: Swap;
+    route: Step[];
+    [k: string]: unknown;
+  };
+};
+export type SwapAmountWithLimit =
+  | {
+      exact_in: {
+        input: Uint128;
+        min_output: Uint128;
+        [k: string]: unknown;
+      };
+    }
+  | {
+      exact_out: {
+        max_input: Uint128;
+        output: Uint128;
         [k: string]: unknown;
       };
     };
@@ -171,6 +216,54 @@ export type DistributionMsg =
          * The `validator_address`
          */
         validator: string;
+        [k: string]: unknown;
+      };
+    };
+/**
+ * Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.
+ *
+ * This is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>
+ */
+export type Binary = string;
+/**
+ * These are messages in the IBC lifecycle. Only usable by IBC-enabled contracts (contracts that directly speak the IBC protocol via 6 entry points)
+ */
+export type IbcMsg =
+  | {
+      transfer: {
+        /**
+         * packet data only supports one coin https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/ibc/applications/transfer/v1/transfer.proto#L11-L20
+         */
+        amount: Coin;
+        /**
+         * exisiting channel to send the tokens over
+         */
+        channel_id: string;
+        /**
+         * when packet times out, measured on remote chain
+         */
+        timeout: IbcTimeout;
+        /**
+         * address on the remote chain to receive these tokens
+         */
+        to_address: string;
+        [k: string]: unknown;
+      };
+    }
+  | {
+      send_packet: {
+        channel_id: string;
+        data: Binary;
+        /**
+         * when packet times out, measured on remote chain
+         */
+        timeout: IbcTimeout;
+        [k: string]: unknown;
+      };
+    }
+  | {
+      close_channel: {
+        channel_id: string;
         [k: string]: unknown;
       };
     };
@@ -234,12 +327,14 @@ export type WasmMsg =
         [k: string]: unknown;
       };
     };
-/**
- * Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.
- *
- * This is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>
- */
-export type Binary = string;
+export type GovMsg = {
+  vote: {
+    proposal_id: number;
+    vote: VoteOption;
+    [k: string]: unknown;
+  };
+};
+export type VoteOption = "yes" | "no" | "abstain" | "no_with_veto";
 /**
  * Expiration represents a point in time when some event happens. It can compare with a BlockInfo and will return is_expired() == true once the condition is hit (and for every block in the future)
  */
@@ -267,6 +362,69 @@ export interface Coin {
   amount: Uint128;
   denom: string;
 }
+export interface Swap {
+  [k: string]: unknown;
+  denom_in: string;
+  denom_out: string;
+  pool_id: number;
+}
+export interface Step {
+  [k: string]: unknown;
+  denom_out: string;
+  pool_id: number;
+}
+/**
+ * In IBC each package must set at least one type of timeout: the timestamp or the block height. Using this rather complex enum instead of two timeout fields we ensure that at least one timeout is set.
+ */
+export interface IbcTimeout {
+  [k: string]: unknown;
+  block?: IbcTimeoutBlock | null;
+  timestamp?: Timestamp | null;
+}
+/**
+ * IBCTimeoutHeight Height is a monotonically increasing data type that can be compared against another Height for the purposes of updating and freezing clients. Ordering is (revision_number, timeout_height)
+ */
+export interface IbcTimeoutBlock {
+  [k: string]: unknown;
+  /**
+   * block height after which the packet times out. the height within the given revision
+   */
+  height: number;
+  /**
+   * the version that the client is currently on (eg. after reseting the chain this could increment 1 as height drops to 0)
+   */
+  revision: number;
+}
+export type CosmosMsgFor_Empty =
+  | {
+      bank: BankMsg;
+    }
+  | {
+      custom: Empty;
+    }
+  | {
+      staking: StakingMsg;
+    }
+  | {
+      distribution: DistributionMsg;
+    }
+  | {
+      stargate: {
+        type_url: string;
+        value: Binary;
+        [k: string]: unknown;
+      };
+    }
+  | {
+      ibc: IbcMsg;
+    }
+  | {
+      wasm: WasmMsg;
+    }
+  | {
+      gov: GovMsg;
+    };
+export type Status = "pending" | "open" | "rejected" | "passed" | "executed";
 /**
  * An empty struct that serves as a placeholder in different places, such as contracts that don't set a custom message.
  *
@@ -275,7 +433,6 @@ export interface Coin {
 export interface Empty {
   [k: string]: unknown;
 }
-export type Status = "pending" | "open" | "rejected" | "passed" | "executed";
 export interface Votes {
   [k: string]: unknown;
   abstain: Uint128;

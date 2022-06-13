@@ -1,4 +1,4 @@
-import { Addr, Denom, Status } from "./shared-types";
+import {Addr, Denom, Status} from "./shared-types";
 
 export type QueryMsg =
   | {
@@ -54,6 +54,21 @@ export type QueryMsg =
         start?: string | null;
         [k: string]: unknown;
       };
+    }
+  | {
+      deposit: {
+        depositor: string;
+        proposal_id: number;
+        [k: string]: unknown;
+      };
+    }
+  | {
+      deposits: {
+        limit?: number | null;
+        order?: RangeOrder | null;
+        query: DepositsQueryOption;
+        [k: string]: unknown;
+      };
     };
 export type RangeOrder = "asc" | "desc";
 export type ProposalsQueryOption =
@@ -71,6 +86,27 @@ export type ProposalsQueryOption =
     }
   | {
       everything: {
+        [k: string]: unknown;
+      };
+    };
+export type DepositsQueryOption =
+  | {
+      find_by_proposal: {
+        proposal_id: number;
+        start?: string | null;
+        [k: string]: unknown;
+      };
+    }
+  | {
+      find_by_depositor: {
+        depositor: string;
+        start?: number | null;
+        [k: string]: unknown;
+      };
+    }
+  | {
+      everything: {
+        start?: [number, string] | null;
         [k: string]: unknown;
       };
     };

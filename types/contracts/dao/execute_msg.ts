@@ -1,11 +1,4 @@
-import {
-  Addr,
-  Config,
-  CosmosMsgFor_Empty,
-  Denom,
-  Expiration,
-  Vote,
-} from "./shared-types";
+import {Addr, Config, CosmosMsgFor_OsmosisMsg, Denom, Expiration, Vote,} from "./shared-types";
 
 export type ExecuteMsg =
   | {
@@ -58,7 +51,7 @@ export type ExecuteMsg =
 export interface ProposeMsg {
   description: string;
   link: string;
-  msgs: CosmosMsgFor_Empty[];
+  msgs: CosmosMsgFor_OsmosisMsg[];
   title: string;
   [k: string]: unknown;
 }
