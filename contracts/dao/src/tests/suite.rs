@@ -45,6 +45,7 @@ pub struct SuiteBuilder {
     deposits: (Uint128, Uint128),  // min, quo
 }
 
+#[allow(dead_code)]
 impl SuiteBuilder {
     pub fn new() -> Self {
         let denom = "denom";
@@ -269,6 +270,7 @@ pub struct Suite {
     pub denom: String,
 }
 
+#[allow(dead_code)]
 impl Suite {
     pub fn new(app: OsmosisApp, dao: Addr, denom: impl Into<String>) -> Self {
         let mut suite = Self {
