@@ -58,4 +58,15 @@ fn main() {
         &out_dir,
         "VotesResponse",
     );
+
+    export_schema_with_title(
+        &schema_for!(query::DepositResponse),
+        &out_dir,
+        "DepositResponse",
+    );
+    export_schema_with_title(
+        &schema_for!(query::DepositsResponse),
+        &out_dir,
+        "DepositsResponse",
+    );
 }
