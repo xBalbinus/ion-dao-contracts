@@ -1,4 +1,3 @@
-mod bump;
+mod execute;
 mod instantiate;
-mod lifecycle;
 mod suite;

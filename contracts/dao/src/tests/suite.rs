@@ -241,7 +241,7 @@ impl SuiteBuilder {
         // proposals
         for propose_msg in self.props {
             suite
-                .sudo_mint(self.owner.as_str(), self.deposits.1.clone())
+                .sudo_mint(self.owner.as_str(), self.deposits.1)
                 .unwrap();
 
             suite
@@ -367,7 +367,7 @@ impl Suite {
     ) -> AnyResult<AppResponse> {
         let funds = deposit
             .map(|amount| coins(amount, &self.denom))
-            .unwrap_or(vec![]);
+            .unwrap_or_default();
 
         self.app.borrow_mut().execute_contract(
             Addr::unchecked(proposer.to_string()),
@@ -390,7 +390,7 @@ impl Suite {
     ) -> AnyResult<AppResponse> {
         let funds = amount
             .map(|amount| coins(amount, &self.denom))
-            .unwrap_or(vec![]);
+            .unwrap_or_default();
 
         self.app.borrow_mut().execute_contract(
             Addr::unchecked(depositor),

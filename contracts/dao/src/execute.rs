@@ -20,7 +20,7 @@ use crate::state::{
 };
 use crate::ContractError;
 
-use super::{CosmosMsg, DepsMut, Response, SubMsg, MAX_LIMIT};
+use super::{CosmosMsg, DepsMut, Response, MAX_LIMIT};
 
 fn check_paused(storage: &dyn Storage, block: &BlockInfo) -> Result<(), ContractError> {
     let paused = DAO_PAUSED.may_load(storage)?;
@@ -91,7 +91,7 @@ fn update_proposal_status(
             Err(StdError::not_found("proposal"))
         }
     })?;
-    IDX_PROPS_BY_STATUS.remove(storage, (before.clone() as u8, prop_id));
+    IDX_PROPS_BY_STATUS.remove(storage, (before as u8, prop_id));
     IDX_PROPS_BY_STATUS.save(storage, (desired as u8, prop_id), &Empty {})?;
 
     Ok(())
@@ -176,7 +176,7 @@ pub fn propose(
         deposit_base_amount: cfg.proposal_deposit,
     };
     if received >= cfg.proposal_deposit {
-        prop.activate_voting_period(env.block.clone().into(), &cfg.voting_period);
+        prop.activate_voting_period(env.block.into(), &cfg.voting_period);
     }
 
     let id = next_id(deps.storage)?;
@@ -217,7 +217,7 @@ pub fn deposit(
     let mut prop = PROPOSALS.load(deps.storage, prop_id)?;
     check_proposal_status(&prop, Status::Pending)?;
     if prop.deposit_ends_at.is_expired(&env.block) {
-        return Err(ContractError::Expired {});
+        Err(ContractError::Expired {})
     } else {
         create_deposit(deps.storage, prop_id, &info.sender, &received)?;
 
@@ -512,10 +512,9 @@ mod test {
 
     #[test]
     fn check_proposal_status() {
-        let make_prop = |status: Status| {
-            let mut prop = Proposal::default();
-            prop.status = status;
-            prop
+        let make_prop = |status: Status| Proposal {
+            status,
+            ..Default::default()
         };
 
         super::check_proposal_status(&make_prop(Status::Pending), Status::Pending).unwrap();
@@ -577,9 +576,11 @@ mod test {
         let mut storage = MockStorage::default();
 
         let proposer = Addr::unchecked("proposer");
-        let mut proposal = Proposal::default();
+        let mut proposal = Proposal {
+            proposer: proposer.clone(),
+            ..Default::default()
+        };
 
-        proposal.proposer = proposer.clone();
         super::create_proposal(&mut storage, 1, &proposer, &proposal).unwrap();
 
         proposal.proposer = Addr::unchecked("abuser");
@@ -594,9 +595,11 @@ mod test {
         let mut storage = MockStorage::default();
 
         let proposer = Addr::unchecked("proposer");
-        let mut proposal = Proposal::default();
+        let proposal = Proposal {
+            proposer: proposer.clone(),
+            ..Default::default()
+        };
 
-        proposal.proposer = proposer.clone();
         super::create_proposal(&mut storage, 1, &proposer, &proposal).unwrap();
 
         let depositor1 = Addr::unchecked("depositor1");

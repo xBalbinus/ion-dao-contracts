@@ -288,42 +288,6 @@ mod query {
         })
     }
 
-    pub fn balance_with_asset_type(
-        querier: QuerierWrapper,
-        env: Env,
-        asset_type: &str,
-        value: &str,
-    ) -> StdResult<Balance> {
-        match asset_type {
-            "native" => {
-                let balance_resp = querier.query_balance(env.contract.address, value).unwrap();
-
-                Ok(Balance::Native(NativeBalance(vec![balance_resp])))
-            }
-            "cw20" => {
-                let balance_resp: BalanceResponse = querier
-                    .query_wasm_smart(
-                        value,
-                        &Cw20QueryMsg::Balance {
-                            address: env.contract.address.to_string(),
-                        },
-                    )
-                    .unwrap_or(BalanceResponse {
-                        balance: Uint128::zero(),
-                    });
-
-                Ok(Balance::Cw20(Cw20CoinVerified {
-                    address: Addr::unchecked(value),
-                    amount: balance_resp.balance,
-                }))
-            }
-            _ => Err(StdError::generic_err(format!(
-                "invalid asset type {}",
-                asset_type
-            ))),
-        }
-    }
-
     pub fn proposal(deps: Deps, env: Env, id: u64) -> StdResult<ProposalResponse<OsmosisMsg>> {
         let prop = PROPOSALS.load(deps.storage, id)?;
         Ok(proposal_to_response(&env.block, id, prop))
@@ -416,14 +380,8 @@ mod query {
         let order = order.unwrap_or(RangeOrder::Asc).into();
         let start = maybe_addr(deps.api, start)?;
         let (min, max) = match order {
-            Order::Ascending => (
-                start.as_ref().map(|addr| Bound::<&Addr>::exclusive(addr)),
-                None,
-            ),
-            Order::Descending => (
-                None,
-                start.as_ref().map(|addr| Bound::<&Addr>::exclusive(addr)),
-            ),
+            Order::Ascending => (start.as_ref().map(Bound::<&Addr>::exclusive), None),
+            Order::Descending => (None, start.as_ref().map(Bound::<&Addr>::exclusive)),
         };
 
         let votes: StdResult<Vec<_>> = BALLOTS

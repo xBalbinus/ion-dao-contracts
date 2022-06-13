@@ -13,8 +13,6 @@ mod propose {
         coin, coins, to_binary, BankMsg, DistributionMsg, GovMsg, IbcMsg, IbcTimeout, StakingMsg,
         VoteOption, WasmMsg,
     };
-    use cw_multi_test::Executor;
-    use osmo_bindings::OsmosisMsg::Swap;
     use osmo_bindings::{OsmosisMsg, SwapAmountWithLimit};
 
     use super::*;
@@ -337,8 +335,8 @@ mod vote {
         ];
 
         for (voter, weight, vote) in cases1.iter() {
-            let resp = suite.vote(voter, 1, vote.clone()).unwrap();
-            assert_event_attrs(resp.custom_attrs(1), voter, vote.clone(), 1);
+            let resp = suite.vote(voter, 1, *vote).unwrap();
+            assert_event_attrs(resp.custom_attrs(1), voter, *vote, 1);
 
             total += weight;
             votes.submit(*vote, Uint128::new(*weight));
@@ -372,8 +370,8 @@ mod vote {
         ];
 
         for (idx, (voter, weight, vote)) in cases2.iter().enumerate() {
-            let resp = suite.vote(voter, 1, vote.clone()).unwrap();
-            assert_event_attrs(resp.custom_attrs(1), voter, vote.clone(), 1);
+            let resp = suite.vote(voter, 1, *vote).unwrap();
+            assert_event_attrs(resp.custom_attrs(1), voter, *vote, 1);
 
             votes.revoke(cases1[idx].2, Uint128::new(cases1[idx].1));
             votes.submit(*vote, Uint128::new(*weight));
@@ -446,7 +444,7 @@ mod vote {
     }
 }
 
-mod execute {
+mod execute_proposal {
     use cosmwasm_std::{coins, Addr, BankMsg};
     use cw_multi_test::Executor;
 
@@ -541,7 +539,7 @@ mod execute {
     }
 }
 
-mod close {
+mod close_proposal {
     use super::*;
 
     fn assert_event_attrs(src: &[Attribute], sender: &str, proposal_id: u64, result: &str) {
@@ -601,5 +599,47 @@ mod close {
         let resp = suite.close_proposal("owner", 2).unwrap();
         assert_event_attrs(resp.custom_attrs(1), "owner", 2, "confiscate");
         assert!(suite.check_balance("tester0", 0u128));
+    }
+
+    #[test]
+    fn should_fail_if_status_is_invalid() {
+        let mut suite = SuiteBuilder::new()
+            .with_staked(vec![("tester0", 50u128)])
+            .add_proposal("title", "link", "desc", vec![])
+            .build();
+
+        suite.vote("tester0", 1, Vote::Yes).unwrap();
+        suite.app().advance_blocks(10);
+
+        suite.execute_proposal("owner", 1).unwrap();
+
+        let err = suite.close_proposal("abuser", 1).unwrap_err();
+        assert_eq!(
+            ContractError::InvalidProposalStatus {
+                current: "Executed".to_string(),
+                desired: "pending | open".to_string()
+            },
+            err.downcast().unwrap()
+        );
+    }
+
+    #[test]
+    fn should_fail_if_close_passed_proposal() {
+        let mut suite = SuiteBuilder::new()
+            .with_staked(vec![("tester0", 50u128)])
+            .add_proposal("title", "link", "desc", vec![])
+            .build();
+
+        suite.vote("tester0", 1, Vote::Yes).unwrap();
+        suite.app().advance_blocks(10);
+
+        let err = suite.close_proposal("abuser", 1).unwrap_err();
+        assert_eq!(
+            ContractError::InvalidProposalStatus {
+                current: "Passed".to_string(),
+                desired: "Rejected".to_string()
+            },
+            err.downcast().unwrap()
+        )
     }
 }

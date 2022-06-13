@@ -62,11 +62,11 @@ pub struct BlockTime {
     pub time: Timestamp,
 }
 
-impl Into<BlockTime> for BlockInfo {
-    fn into(self) -> BlockTime {
-        BlockTime {
-            height: self.height.clone(),
-            time: self.time.clone(),
+impl From<BlockInfo> for BlockTime {
+    fn from(info: BlockInfo) -> Self {
+        Self {
+            height: info.height,
+            time: info.time,
         }
     }
 }

@@ -8,7 +8,7 @@ use osmo_bindings_test::OsmosisApp;
 use crate::msg::{GovToken, InstantiateMsg, QueryMsg};
 use crate::query::{ConfigResponse, TokenListResponse};
 use crate::state::Threshold;
-use crate::tests::suite::{contract_dao, contract_stake, Suite};
+use crate::tests::suite::{contract_dao, contract_stake};
 use crate::ContractError;
 
 fn prepare() -> (OsmosisApp, u64, u64) {
@@ -180,7 +180,7 @@ fn should_fail_if_threshold_is_invalid() {
     t2.threshold.threshold = Decimal::percent(0);
     cases.push(t2);
 
-    let mut t3 = dao_init_msg.clone();
+    let mut t3 = dao_init_msg;
     t3.threshold.quorum = Decimal::percent(0);
     cases.push(t3);
 
