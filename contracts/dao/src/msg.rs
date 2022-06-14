@@ -154,8 +154,8 @@ pub enum QueryMsg {
 
     /// # TokenList
     ///
+    /// Queries list of cw20 Tokens associated with the DAO Treasury.  
     /// Returns [TokenListResponse]
-    /// list of cw20 Tokens associated with the DAO Treasury
     ///
     /// ## Example
     ///
@@ -286,7 +286,7 @@ pub enum QueryMsg {
 
     /// # Deposit
     ///
-    /// Queries single deposit info by proposal id & address of depositor
+    /// Queries single deposit info by proposal id & address of depositor.  
     /// Returns [DepositResponse]
     ///
     /// ## Example
