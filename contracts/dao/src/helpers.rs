@@ -1,14 +1,14 @@
 use cosmwasm_std::{
-    to_binary, Addr, BlockInfo, CosmosMsg, Decimal, Env, MessageInfo, QuerierWrapper, StdError,
-    StdResult, Uint128, WasmMsg,
+    Addr, BlockInfo, CosmosMsg, Decimal, Env, MessageInfo, QuerierWrapper, StdError, StdResult,
+    to_binary, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
 use cw_utils::{Duration, Expiration};
 use osmo_bindings::{OsmosisMsg, OsmosisQuery};
 
-use crate::query::ProposalResponse;
-use crate::state::{BlockTime, Proposal, STAKING_CONTRACT};
 use crate::ContractError;
+use crate::msg::ProposalResponse;
+use crate::state::{BlockTime, Proposal, STAKING_CONTRACT};
 
 /// type aliases
 pub type Response = cosmwasm_std::Response<OsmosisMsg>;

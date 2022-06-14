@@ -1,26 +1,26 @@
 use std::ops::Add;
 
 use cosmwasm_std::{
-    coins, Addr, BankMsg, BlockInfo, Empty, Env, MessageInfo, Order, StdError, StdResult, Storage,
+    Addr, BankMsg, BlockInfo, coins, Empty, Env, MessageInfo, Order, StdError, StdResult, Storage,
     Uint128,
 };
 use cw20::Denom;
 use cw3::{Status, Vote};
 use cw_storage_plus::Bound;
-use cw_utils::{may_pay, Expiration};
+use cw_utils::{Expiration, may_pay};
 
+use crate::ContractError;
 use crate::helpers::{
     duration_to_expiry, get_and_check_limit, get_total_staked_supply, get_voting_power_at_height,
 };
 use crate::msg::ProposeMsg;
 use crate::state::{
-    next_id, Ballot, Config, Proposal, Votes, BALLOTS, CONFIG, DAO_PAUSED, DEPOSITS, GOV_TOKEN,
-    IDX_DEPOSITS_BY_DEPOSITOR, IDX_PROPS_BY_PROPOSER, IDX_PROPS_BY_STATUS, PROPOSALS,
-    STAKING_CONTRACT, TREASURY_TOKENS,
+    Ballot, BALLOTS, Config, CONFIG, DAO_PAUSED, DEPOSITS, GOV_TOKEN, IDX_DEPOSITS_BY_DEPOSITOR, IDX_PROPS_BY_PROPOSER, IDX_PROPS_BY_STATUS,
+    next_id, Proposal, PROPOSALS, STAKING_CONTRACT,
+    TREASURY_TOKENS, Votes,
 };
-use crate::ContractError;
 
-use super::{CosmosMsg, DepsMut, Response, MAX_LIMIT};
+use super::{CosmosMsg, DepsMut, MAX_LIMIT, Response};
 
 fn check_paused(storage: &dyn Storage, block: &BlockInfo) -> Result<(), ContractError> {
     let paused = DAO_PAUSED.may_load(storage)?;

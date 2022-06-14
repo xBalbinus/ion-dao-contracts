@@ -205,8 +205,8 @@ fn votes_needed(weight: Uint128, percentage: Decimal) -> Uint128 {
 mod test {
     use std::ops::Add;
 
-    use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::Env;
+    use cosmwasm_std::testing::mock_env;
 
     use super::*;
 
@@ -267,7 +267,8 @@ mod test {
                 true => Expiration::AtHeight(env.block.height - 5),
                 false => Expiration::AtHeight(env.block.height + 100),
             };
-            let prop = Proposal {
+
+            Proposal {
                 status: Status::Pending,
 
                 // time
@@ -287,9 +288,7 @@ mod test {
                 deposit_base_amount: deposit_base,
 
                 ..Default::default()
-            };
-
-            prop
+            }
         }
 
         fn assert_pending(env: &Env, prop: Proposal) {
@@ -310,40 +309,22 @@ mod test {
             let deposit_base = Uint128::new(100);
 
             // deposit < total_deposit & !expired
-            assert_opened(
-                &env,
-                suite(&env, deposit_base.clone(), Uint128::new(110), false),
-            );
+            assert_opened(&env, suite(&env, deposit_base, Uint128::new(110), false));
 
             // deposit < total_deposit & expired
-            assert_opened(
-                &env,
-                suite(&env, deposit_base.clone(), Uint128::new(110), true),
-            );
+            assert_opened(&env, suite(&env, deposit_base, Uint128::new(110), true));
 
             // deposit = total_deposit & !expired
-            assert_opened(
-                &env,
-                suite(&env, deposit_base.clone(), Uint128::new(100), false),
-            );
+            assert_opened(&env, suite(&env, deposit_base, Uint128::new(100), false));
 
             // deposit = total_deposit & expired
-            assert_opened(
-                &env,
-                suite(&env, deposit_base.clone(), Uint128::new(100), true),
-            );
+            assert_opened(&env, suite(&env, deposit_base, Uint128::new(100), true));
 
             // deposit > total_deposit & !expired
-            assert_pending(
-                &env,
-                suite(&env, deposit_base.clone(), Uint128::new(90), false),
-            );
+            assert_pending(&env, suite(&env, deposit_base, Uint128::new(90), false));
 
             // deposit > total_deposit & expired
-            assert_rejected(
-                &env,
-                suite(&env, deposit_base.clone(), Uint128::new(90), true),
-            );
+            assert_rejected(&env, suite(&env, deposit_base, Uint128::new(90), true));
         }
     }
 
@@ -362,7 +343,8 @@ mod test {
                 true => Expiration::AtHeight(env.block.height - 5),
                 false => Expiration::AtHeight(env.block.height + 100),
             };
-            let prop = Proposal {
+
+            Proposal {
                 status: Status::Open,
 
                 // time
@@ -383,9 +365,7 @@ mod test {
                 votes: votes.clone(),
 
                 ..Default::default()
-            };
-
-            prop
+            }
         }
 
         fn assert_opened(env: &Env, prop: Proposal) {
@@ -465,7 +445,7 @@ mod test {
                 veto: Uint128::new(1),
             };
             let weight = Uint128::new(30);
-            assert_passed(&env, suite(&env, &quorum, &pass, weight.clone(), true));
+            assert_passed(&env, suite(&env, &quorum, &pass, weight, true));
 
             // === expired & over quorum & abstain buffer (passed)
             // over quorum, threshold passes if we ignore abstain
@@ -478,7 +458,7 @@ mod test {
                 veto: Uint128::new(2),
             };
             let weight = Uint128::new(40);
-            assert_passed(&env, suite(&env, &quorum, &pass, weight.clone(), true));
+            assert_passed(&env, suite(&env, &quorum, &pass, weight, true));
 
             // === expired & under quorum (rejected)
             // under quorum (40% of 33 = 13.2 > 13)
@@ -489,7 +469,7 @@ mod test {
                 veto: Uint128::new(1),
             };
             let weight = Uint128::new(33);
-            assert_rejected(&env, suite(&env, &quorum, &reject, weight.clone(), true));
+            assert_rejected(&env, suite(&env, &quorum, &reject, weight, true));
 
             // === expired & under threshold (rejected)
             // over quorum (40% of 20 = 8)
@@ -502,7 +482,7 @@ mod test {
                 veto: Uint128::new(2),
             };
             let weight = Uint128::new(20);
-            assert_rejected(&env, suite(&env, &quorum, &reject, weight.clone(), true));
+            assert_rejected(&env, suite(&env, &quorum, &reject, weight, true));
 
             // === expired & vetoed (rejected)
             // over quorum (40% of 23 = 9.2)
@@ -515,7 +495,7 @@ mod test {
                 veto: Uint128::new(8),
             };
             let weight = Uint128::new(23);
-            assert_vetoed(&env, suite(&env, &quorum, &reject, weight.clone(), true));
+            assert_vetoed(&env, suite(&env, &quorum, &reject, weight, true));
         }
 
         #[test]
