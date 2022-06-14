@@ -320,7 +320,7 @@ pub enum QueryMsg {
     ///       } |
     ///       "find_by_depositor": {
     ///         "depositor": "osmo1deadbeef",
-    ///         "start"?: "osmo1deadbeef"
+    ///         "start"?: 1
     ///       } |
     ///       "everything": {
     ///         "start"?: [1, "osmo1deadbeef"]
