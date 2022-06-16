@@ -138,7 +138,7 @@ pub fn propose(
     let gov_token = GOV_TOKEN.load(deps.storage)?;
 
     let received = may_pay(&info, gov_token.as_str())
-        .map_err(|e| ContractError::Std(StdError::generic_err(format!("{:?}", e))))?;
+        .map_err(|e| ContractError::Std(StdError::generic_err(format!("{}", e))))?;
     if received < cfg.proposal_min_deposit {
         return Err(ContractError::Unauthorized {});
     }
