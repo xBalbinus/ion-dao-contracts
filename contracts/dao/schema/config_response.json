@@ -30,6 +30,7 @@
         "description",
         "name",
         "proposal_deposit",
+        "proposal_min_deposit",
         "threshold",
         "voting_period"
       ],
@@ -44,6 +45,9 @@
           "type": "string"
         },
         "proposal_deposit": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "proposal_min_deposit": {
           "$ref": "#/definitions/Uint128"
         },
         "threshold": {

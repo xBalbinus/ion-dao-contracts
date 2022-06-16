@@ -2,9 +2,9 @@ import { join } from "path";
 
 import Config from "./config";
 import { InstantiateResult, UploadResult } from "./types";
-import * as daoType from "../types/contracts/dao";
-import * as stakeType from "../types/contracts/stake";
 import { writeFileSync } from "fs";
+
+import { dao, stake } from "../types/contracts";
 
 async function main() {
   const cfg = await Config.new();
@@ -29,29 +29,29 @@ async function main() {
         name: "ION DAO",
         description: "DAO of the ION holders",
         gov_token: {
-          use_native: {
-            denom: "uion",
-            label: "ION staking contract for governance",
-            stake_contract_code_id: codes.ion_stake,
-            unstaking_duration: { height: 10 },
-          },
+          denom: "uion",
+          label: "ION staking contract for governance",
+          stake_contract_code_id: codes.ion_stake,
+          unstaking_duration: { time: 3600 },
         },
-        threshold: {
-          threshold_quorum: { quorum: "0.3", threshold: "0.5" },
-        },
-        max_voting_period: { height: 50 },
+        threshold: { quorum: "0.3", threshold: "0.5", veto_threshold: "0.3" },
+        deposit_period: { time: 600 },
+        voting_period: { time: 600 },
         proposal_deposit_amount: "100",
-      } as daoType.InstantiateMsg,
+        proposal_deposit_min_amount: "50",
+      } as dao.InitMsg,
       "ION governance contract",
       "auto"
     );
 
   console.log({ contractAddress: daoAddress, transactionHash });
 
-  const configResp: daoType.ConfigResponse =
-    await cfg.cosmwasm.queryContractSmart(daoAddress, {
+  const configResp: dao.ConfigResponse = await cfg.cosmwasm.queryContractSmart(
+    daoAddress,
+    {
       get_config: {},
-    } as daoType.QueryMsg);
+    } as dao.QueryMsg
+  );
 
   const stakeAddress = configResp.staking_contract;
 

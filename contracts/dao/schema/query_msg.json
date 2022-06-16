@@ -3,7 +3,8 @@
   "title": "QueryMsg",
   "oneOf": [
     {
-      "description": "Returns Config",
+      "title": "GetConfig",
+      "description": "Returns [ConfigResponse]\n\n## Example\n\n```json { \"get_config\": {} } ```",
       "type": "object",
       "required": [
         "get_config"
@@ -16,7 +17,8 @@
       "additionalProperties": false
     },
     {
-      "description": "Return list of cw20 Tokens associated with the DAO Treasury",
+      "title": "TokenList",
+      "description": "Returns [TokenListResponse] list of cw20 Tokens associated with the DAO Treasury\n\n## Example\n\n```json { \"token_list\": {} } ```",
       "type": "object",
       "required": [
         "token_list"
@@ -29,7 +31,8 @@
       "additionalProperties": false
     },
     {
-      "description": "Returns All DAO Cw20 Balances",
+      "title": "TokenBalances",
+      "description": "Returns [TokenBalancesResponse] All DAO Cw20 Balances\n\n## Example\n\n```json { \"token_balances\": { \"start\"?: { \"native\": \"uosmo\" | \"cw20\": \"osmo1deadbeef\" }, \"limit\": 30 | 10, \"order\": \"asc\" | \"desc\" } } ```",
       "type": "object",
       "required": [
         "token_balances"
@@ -72,7 +75,8 @@
       "additionalProperties": false
     },
     {
-      "description": "Returns ProposalResponse",
+      "title": "Proposal",
+      "description": "Returns [ProposalResponse]\n\n## Example\n\n```json { \"proposal\": { \"proposal_id\": 1 } } ```",
       "type": "object",
       "required": [
         "proposal"
@@ -95,7 +99,8 @@
       "additionalProperties": false
     },
     {
-      "description": "Returns ProposalListResponse",
+      "title": "Proposals",
+      "description": "Returns [ProposalsResponse]\n\n## Example\n\n```json { \"proposals\": { \"query\": { \"find_by_status\": { \"status\": \"pending\" | .. | \"executed\" } | \"find_by_proposer\": { \"proposer\": \"osmo1deadbeef\" } | \"everything\": {} }, \"start\"?: 10, \"limit\": 30 | 10, \"order\": \"asc\" | \"desc\" } } ```",
       "type": "object",
       "required": [
         "proposals"
@@ -103,6 +108,9 @@
       "properties": {
         "proposals": {
           "type": "object",
+          "required": [
+            "query"
+          ],
           "properties": {
             "limit": {
               "type": [
@@ -122,6 +130,9 @@
                 }
               ]
             },
+            "query": {
+              "$ref": "#/definitions/ProposalsQueryOption"
+            },
             "start": {
               "type": [
                 "integer",
@@ -136,7 +147,8 @@
       "additionalProperties": false
     },
     {
-      "description": "Returns the number of proposals in the DAO (u64)",
+      "title": "ProposalCount",
+      "description": "Returns the number of proposals in the DAO (u64)\n\n## Example\n\n```json { \"proposal_count\": {} } ```",
       "type": "object",
       "required": [
         "proposal_count"
@@ -149,7 +161,8 @@
       "additionalProperties": false
     },
     {
-      "description": "Returns VoteResponse",
+      "title": "Vote",
+      "description": "Returns [VoteResponse]\n\n## Example\n\n```json { \"vote\": { \"proposal_id\": 1, \"voter\": \"osmo1deadbeef\" } } ```",
       "type": "object",
       "required": [
         "vote"
@@ -176,7 +189,8 @@
       "additionalProperties": false
     },
     {
-      "description": "Returns VoteListResponse",
+      "title": "Votes",
+      "description": "Returns [VotesResponse]\n\n## Example\n\n```json { \"votes\": { \"proposal_id\": 1, \"start\"?: \"osmo1deadbeef\", \"limit\": 30 | 10, \"order\": \"asc\" | \"desc\" } } ```",
       "type": "object",
       "required": [
         "votes"
@@ -221,6 +235,74 @@
         }
       },
       "additionalProperties": false
+    },
+    {
+      "title": "Deposit",
+      "description": "Queries single deposit info by proposal id & address of depositor Returns [DepositResponse]\n\n## Example\n\n```json { \"deposit\": { \"proposal_id\": 1, \"depositor\": \"osmo1deadbeef\" } } ```",
+      "type": "object",
+      "required": [
+        "deposit"
+      ],
+      "properties": {
+        "deposit": {
+          "type": "object",
+          "required": [
+            "depositor",
+            "proposal_id"
+          ],
+          "properties": {
+            "depositor": {
+              "type": "string"
+            },
+            "proposal_id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Deposits",
+      "description": "Queries multiple deposits info by 1. proposal id 2. depositor address Returns [DepositsResponse]\n\n## Example\n\n```json { \"deposits\": { \"query\": { \"find_by_proposal\": { \"proposal_id\": 1, \"start\"?: \"osmo1deadbeef\" } | \"find_by_depositor\": { \"depositor\": \"osmo1deadbeef\", \"start\"?: \"osmo1deadbeef\" } | \"everything\": { \"start\"?: [1, \"osmo1deadbeef\"] } }, \"limit\": 30 | 10, \"order\": \"asc\" | \"desc\" } } ```",
+      "type": "object",
+      "required": [
+        "deposits"
+      ],
+      "properties": {
+        "deposits": {
+          "type": "object",
+          "required": [
+            "query"
+          ],
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "order": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/RangeOrder"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "query": {
+              "$ref": "#/definitions/DepositsQueryOption"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
     }
   ],
   "definitions": {
@@ -256,11 +338,169 @@
         }
       ]
     },
+    "DepositsQueryOption": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "find_by_proposal"
+          ],
+          "properties": {
+            "find_by_proposal": {
+              "type": "object",
+              "required": [
+                "proposal_id"
+              ],
+              "properties": {
+                "proposal_id": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                },
+                "start": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "find_by_depositor"
+          ],
+          "properties": {
+            "find_by_depositor": {
+              "type": "object",
+              "required": [
+                "depositor"
+              ],
+              "properties": {
+                "depositor": {
+                  "type": "string"
+                },
+                "start": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "everything"
+          ],
+          "properties": {
+            "everything": {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": [
+                    {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ],
+                  "maxItems": 2,
+                  "minItems": 2
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ProposalsQueryOption": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "find_by_status"
+          ],
+          "properties": {
+            "find_by_status": {
+              "type": "object",
+              "required": [
+                "status"
+              ],
+              "properties": {
+                "status": {
+                  "$ref": "#/definitions/Status"
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "find_by_proposer"
+          ],
+          "properties": {
+            "find_by_proposer": {
+              "type": "object",
+              "required": [
+                "proposer"
+              ],
+              "properties": {
+                "proposer": {
+                  "$ref": "#/definitions/Addr"
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "everything"
+          ],
+          "properties": {
+            "everything": {
+              "type": "object"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
     "RangeOrder": {
       "type": "string",
       "enum": [
         "asc",
         "desc"
+      ]
+    },
+    "Status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "open",
+        "rejected",
+        "passed",
+        "executed"
       ]
     }
   }

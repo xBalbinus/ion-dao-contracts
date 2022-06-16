@@ -1,9 +1,11 @@
-use cosmwasm_std::{Addr, BlockInfo, CosmosMsg, Decimal, Empty, Timestamp, Uint128};
+use cosmwasm_std::{Addr, BlockInfo, CosmosMsg, Decimal, Timestamp, Uint128};
 use cw3::{Status, Vote};
-use cw_utils::Expiration;
+use cw_utils::{Duration, Expiration};
+use osmo_bindings::OsmosisMsg;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::helpers::duration_to_expiry;
 use crate::threshold::Threshold;
 
 // we multiply by this when calculating needed_votes in order to round up properly
@@ -54,10 +56,19 @@ impl Votes {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug, Default)]
 pub struct BlockTime {
     pub height: u64,
     pub time: Timestamp,
+}
+
+impl From<BlockInfo> for BlockTime {
+    fn from(info: BlockInfo) -> Self {
+        Self {
+            height: info.height,
+            time: info.time,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
@@ -70,12 +81,17 @@ pub struct Proposal {
     pub description: String,
     /// Address of proposer
     pub proposer: Addr,
-    /// Starting time / height information
-    pub deposit_starts_at: BlockTime,
-    pub vote_starts_at: Option<BlockTime>,
-    pub expires_at: Expiration,
-    pub msgs: Vec<CosmosMsg<Empty>>,
+    /// Current status of this proposal
     pub status: Status,
+    /// List of messages to execute
+    pub msgs: Vec<CosmosMsg<OsmosisMsg>>,
+
+    /// Starting time / height information
+    pub submitted_at: BlockTime,
+    pub deposit_ends_at: Expiration,
+    pub vote_starts_at: BlockTime,
+    pub vote_ends_at: Expiration,
+
     /// Pass requirements
     pub threshold: Threshold,
     /// The total weight when the proposal started (used to calculate percentages)
@@ -83,10 +99,39 @@ pub struct Proposal {
     /// summary of existing votes
     pub votes: Votes,
     /// Amount of the native governance token required for voting
-    pub deposit: Uint128,
+    pub total_deposit: Uint128,
+    pub deposit_base_amount: Uint128,
+}
+
+impl Default for Proposal {
+    fn default() -> Self {
+        Self {
+            title: "".to_string(),
+            link: "".to_string(),
+            description: "".to_string(),
+            proposer: Addr::unchecked(""),
+            status: Status::Pending,
+            msgs: vec![],
+            submitted_at: Default::default(),
+            deposit_ends_at: Default::default(),
+            vote_starts_at: Default::default(),
+            vote_ends_at: Default::default(),
+            threshold: Default::default(),
+            total_weight: Default::default(),
+            votes: Default::default(),
+            total_deposit: Default::default(),
+            deposit_base_amount: Default::default(),
+        }
+    }
 }
 
 impl Proposal {
+    pub fn activate_voting_period(&mut self, block_time: BlockTime, voting_period: &Duration) {
+        self.status = Status::Open;
+        self.vote_starts_at = block_time;
+        self.vote_ends_at = duration_to_expiry(&self.vote_starts_at, voting_period);
+    }
+
     /// current_status is non-mutable and returns what the status should be.
     /// (designed for queries)
     pub fn current_status(&self, block: &BlockInfo) -> Status {
@@ -95,17 +140,24 @@ impl Proposal {
         match status {
             // if pending, check if voting is opened or timed out
             Status::Pending => {
-                if self.expires_at.is_expired(block) {
+                // check total deposit amount exceeds deposit base amount
+                if self.deposit_base_amount <= self.total_deposit {
+                    status = Status::Open;
+                } else if self.deposit_ends_at.is_expired(block) {
+                    // if not and deposit period ended, change proposal status to rejected.
                     status = Status::Rejected;
                 }
             }
+
             // if open, check if voting is passed or timed out
             Status::Open => {
-                if self.is_passed(block) {
-                    status = Status::Passed;
-                }
-                if self.expires_at.is_expired(block) {
-                    status = Status::Rejected;
+                // check voting period has ended
+                if self.vote_ends_at.is_expired(block) {
+                    if self.is_passed() {
+                        status = Status::Passed;
+                    } else {
+                        status = Status::Rejected;
+                    }
                 }
             }
             _ => {} // do nothing
@@ -120,27 +172,24 @@ impl Proposal {
         self.status = self.current_status(block);
     }
 
-    // returns true iff this proposal is sure to pass (even before expiration if no future
+    // returns true if this proposal is sure to pass (even before expiration if no future
     // sequence of possible votes can cause it to fail)
-    pub fn is_passed(&self, block: &BlockInfo) -> bool {
+    pub fn is_passed(&self) -> bool {
         // we always require the quorum
         if self.votes.total() < votes_needed(self.total_weight, self.threshold.quorum) {
             return false;
         }
-        if self.expires_at.is_expired(block) {
-            // If expired, we compare Yes votes against the total number of votes (minus abstain).
-            let opinions = self.votes.total() - self.votes.abstain;
-            self.votes.yes >= votes_needed(opinions, self.threshold.threshold)
-        } else {
-            // If not expired, we must assume all non-votes will be cast as No.
-            // We compare threshold against the total weight (minus abstain).
-            let possible_opinions = self.total_weight - self.votes.abstain;
-            self.votes.yes >= votes_needed(possible_opinions, self.threshold.threshold)
-        }
+        // remove abstain to calculate opinions
+        let opinions = self.votes.total() - self.votes.abstain;
+        let passed = self.votes.yes >= votes_needed(opinions, self.threshold.threshold);
+        let vetoed = self.is_vetoed();
+
+        !vetoed && passed
     }
 
+    // returns true if this proposal vetoed
     pub fn is_vetoed(&self) -> bool {
-        self.votes.veto >= votes_needed(self.votes.total(), self.threshold.veto_threshold)
+        self.votes.veto >= votes_needed(self.total_weight, self.threshold.veto_threshold)
     }
 }
 
@@ -154,6 +203,9 @@ fn votes_needed(weight: Uint128, percentage: Decimal) -> Uint128 {
 
 #[cfg(test)]
 mod test {
+    use std::ops::Add;
+
+    use cosmwasm_std::Env;
     use cosmwasm_std::testing::mock_env;
 
     use super::*;
@@ -202,199 +254,297 @@ mod test {
         );
     }
 
-    fn check_is_passed(
-        threshold: Threshold,
-        votes: Votes,
-        total_weight: Uint128,
-        is_expired: bool,
-    ) -> bool {
-        let block = mock_env().block;
-        let expires = match is_expired {
-            true => Expiration::AtHeight(block.height - 5),
-            false => Expiration::AtHeight(block.height + 100),
-        };
-        let prop = Proposal {
-            title: "Demo".to_string(),
-            link: "Test".to_string(),
-            description: "Info".to_string(),
-            proposer: Addr::unchecked("test"),
-            deposit_starts_at: BlockTime {
-                height: 100,
-                time: Default::default(),
-            },
-            vote_starts_at: None,
-            expires_at: expires,
-            msgs: vec![],
-            status: Status::Open,
-            threshold,
-            total_weight,
-            votes,
-            deposit: Uint128::zero(),
-        };
-        prop.is_passed(&block)
+    mod pending {
+        use super::*;
+
+        fn suite(
+            env: &Env,
+            deposit_base: Uint128,
+            total_deposit: Uint128,
+            is_expired: bool,
+        ) -> Proposal {
+            let expires = match is_expired {
+                true => Expiration::AtHeight(env.block.height - 5),
+                false => Expiration::AtHeight(env.block.height + 100),
+            };
+
+            Proposal {
+                status: Status::Pending,
+
+                // time
+                submitted_at: BlockTime {
+                    height: env.block.height - 20,
+                    time: Default::default(),
+                },
+                deposit_ends_at: expires,
+                vote_starts_at: BlockTime {
+                    height: env.block.height + 10,
+                    time: Default::default(),
+                },
+                vote_ends_at: expires.add(Duration::Height(20)).unwrap(),
+
+                // deposit
+                total_deposit,
+                deposit_base_amount: deposit_base,
+
+                ..Default::default()
+            }
+        }
+
+        fn assert_pending(env: &Env, prop: Proposal) {
+            assert_eq!(prop.current_status(&env.block), Status::Pending);
+        }
+
+        fn assert_opened(env: &Env, prop: Proposal) {
+            assert_eq!(prop.current_status(&env.block), Status::Open);
+        }
+
+        fn assert_rejected(env: &Env, prop: Proposal) {
+            assert_eq!(prop.current_status(&env.block), Status::Rejected);
+        }
+
+        #[test]
+        fn test() {
+            let env = mock_env();
+            let deposit_base = Uint128::new(100);
+
+            // deposit < total_deposit & !expired
+            assert_opened(&env, suite(&env, deposit_base, Uint128::new(110), false));
+
+            // deposit < total_deposit & expired
+            assert_opened(&env, suite(&env, deposit_base, Uint128::new(110), true));
+
+            // deposit = total_deposit & !expired
+            assert_opened(&env, suite(&env, deposit_base, Uint128::new(100), false));
+
+            // deposit = total_deposit & expired
+            assert_opened(&env, suite(&env, deposit_base, Uint128::new(100), true));
+
+            // deposit > total_deposit & !expired
+            assert_pending(&env, suite(&env, deposit_base, Uint128::new(90), false));
+
+            // deposit > total_deposit & expired
+            assert_rejected(&env, suite(&env, deposit_base, Uint128::new(90), true));
+        }
     }
 
-    #[test]
-    fn proposal_passed_quorum() {
-        let quorum = Threshold {
-            threshold: Decimal::percent(50),
-            quorum: Decimal::percent(40),
-            veto_threshold: Default::default(),
-        };
-        // all non-yes votes are counted for quorum
-        let passing = Votes {
-            yes: Uint128::new(7),
-            no: Uint128::new(3),
-            abstain: Uint128::new(2),
-            veto: Uint128::new(1),
-        };
-        // abstain votes are not counted for threshold => yes / (yes + no + veto)
-        let passes_ignoring_abstain = Votes {
-            yes: Uint128::new(6),
-            no: Uint128::new(4),
-            abstain: Uint128::new(5),
-            veto: Uint128::new(2),
-        };
-        // fails any way you look at it
-        let failing = Votes {
-            yes: Uint128::new(6),
-            no: Uint128::new(5),
-            abstain: Uint128::new(2),
-            veto: Uint128::new(2),
-        };
+    mod open {
+        use super::*;
 
-        // first, expired (voting period over)
-        // over quorum (40% of 30 = 12), over threshold (7/11 > 50%)
-        assert!(check_is_passed(
-            quorum.clone(),
-            passing.clone(),
-            Uint128::new(30),
-            true
-        ));
-        // under quorum it is not passing (40% of 33 = 13.2 > 13)
-        assert!(!check_is_passed(
-            quorum.clone(),
-            passing.clone(),
-            Uint128::new(33),
-            true
-        ));
-        // over quorum, threshold passes if we ignore abstain
-        // 17 total votes w/ abstain => 40% quorum of 40 total
-        // 6 yes / (6 yes + 4 no + 2 votes) => 50% threshold
-        assert!(check_is_passed(
-            quorum.clone(),
-            passes_ignoring_abstain.clone(),
-            Uint128::new(40),
-            true
-        ));
-        // over quorum, but under threshold fails also
-        assert!(!check_is_passed(
-            quorum.clone(),
-            failing,
-            Uint128::new(20),
-            true
-        ));
+        fn suite(
+            env: &Env,
+            threshold: &Threshold,
+            votes: &Votes,
+            total_weight: Uint128,
+            is_expired: bool,
+        ) -> Proposal {
+            let expires = match is_expired {
+                // voting period
+                true => Expiration::AtHeight(env.block.height - 5),
+                false => Expiration::AtHeight(env.block.height + 100),
+            };
 
-        // now, check with open voting period
-        // would pass if closed, but fail here, as remaining votes no -> fail
-        assert!(!check_is_passed(
-            quorum.clone(),
-            passing.clone(),
-            Uint128::new(30),
-            false
-        ));
-        assert!(!check_is_passed(
-            quorum.clone(),
-            passes_ignoring_abstain.clone(),
-            Uint128::new(40),
-            false
-        ));
-        // if we have threshold * total_weight as yes votes this must pass
-        assert!(check_is_passed(
-            quorum.clone(),
-            passing.clone(),
-            Uint128::new(14),
-            false
-        ));
-        // all votes have been cast, some abstain
-        assert!(check_is_passed(
-            quorum.clone(),
-            passes_ignoring_abstain,
-            Uint128::new(17),
-            false
-        ));
-        // 3 votes uncast, if they all vote no, we have 7 yes, 7 no+veto, 2 abstain (out of 16)
-        assert!(check_is_passed(quorum, passing, Uint128::new(16), false));
-    }
+            Proposal {
+                status: Status::Open,
 
-    #[test]
-    fn quorum_edge_cases() {
-        // when we pass absolute threshold (everyone else voting no, we pass), but still don't hit quorum
-        let quorum = Threshold {
-            threshold: Decimal::percent(60),
-            quorum: Decimal::percent(80),
-            veto_threshold: Decimal::percent(33),
-        };
+                // time
+                submitted_at: BlockTime {
+                    height: env.block.height - 30,
+                    time: Default::default(),
+                },
+                deposit_ends_at: Expiration::AtHeight(env.block.height - 20),
+                vote_starts_at: BlockTime {
+                    height: env.block.height - 10,
+                    time: Default::default(),
+                },
+                vote_ends_at: expires,
 
-        // try 9 yes, 1 no (out of 15) -> 90% voter threshold, 60% absolute threshold, still no quorum
-        // doesn't matter if expired or not
-        let missing_voters = Votes {
-            yes: Uint128::new(9),
-            no: Uint128::new(1),
-            abstain: Uint128::new(0),
-            veto: Uint128::new(0),
-        };
-        assert!(!check_is_passed(
-            quorum.clone(),
-            missing_voters.clone(),
-            Uint128::new(15),
-            false
-        ));
-        assert!(!check_is_passed(
-            quorum.clone(),
-            missing_voters,
-            Uint128::new(15),
-            true
-        ));
+                // vote
+                threshold: threshold.clone(),
+                total_weight,
+                votes: votes.clone(),
 
-        // 1 less yes, 3 vetos and this passes only when expired
-        let wait_til_expired = Votes {
-            yes: Uint128::new(8),
-            no: Uint128::new(1),
-            abstain: Uint128::new(0),
-            veto: Uint128::new(3),
-        };
-        assert!(!check_is_passed(
-            quorum.clone(),
-            wait_til_expired.clone(),
-            Uint128::new(15),
-            false
-        ));
-        assert!(check_is_passed(
-            quorum.clone(),
-            wait_til_expired,
-            Uint128::new(15),
-            true
-        ));
+                ..Default::default()
+            }
+        }
 
-        // 9 yes and 3 nos passes early
-        let passes_early = Votes {
-            yes: Uint128::new(9),
-            no: Uint128::new(3),
-            abstain: Uint128::new(0),
-            veto: Uint128::new(0),
-        };
-        assert!(check_is_passed(
-            quorum.clone(),
-            passes_early.clone(),
-            Uint128::new(15),
-            false
-        ));
-        assert!(check_is_passed(
-            quorum,
-            passes_early,
-            Uint128::new(15),
-            true
-        ));
+        fn assert_opened(env: &Env, prop: Proposal) {
+            assert_eq!(prop.current_status(&env.block), Status::Open);
+        }
+
+        fn assert_passed(env: &Env, prop: Proposal) {
+            assert!(prop.is_passed());
+            assert_eq!(prop.current_status(&env.block), Status::Passed);
+        }
+
+        fn assert_rejected(env: &Env, prop: Proposal) {
+            assert!(!prop.is_passed());
+            assert_eq!(prop.current_status(&env.block), Status::Rejected);
+        }
+
+        fn assert_vetoed(env: &Env, prop: Proposal) {
+            assert!(!prop.is_passed());
+            assert!(prop.is_vetoed());
+            assert_eq!(prop.current_status(&env.block), Status::Rejected)
+        }
+
+        #[test]
+        fn test_in_voting_period() {
+            let quorum = Threshold {
+                threshold: Decimal::percent(50),
+                quorum: Decimal::percent(40),
+                veto_threshold: Decimal::percent(33),
+            };
+
+            let env = mock_env();
+
+            // !expired & passed
+            let votes = Votes {
+                yes: Uint128::new(100),
+                no: Default::default(),
+                abstain: Default::default(),
+                veto: Default::default(),
+            };
+            assert_opened(&env, suite(&env, &quorum, &votes, votes.total(), false));
+
+            // !expired & rejected - threshold
+            let votes = Votes {
+                yes: Default::default(),
+                no: Uint128::new(100),
+                abstain: Default::default(),
+                veto: Default::default(),
+            };
+            assert_opened(&env, suite(&env, &quorum, &votes, votes.total(), false));
+
+            // !expired & rejected - vetoed
+            let votes = Votes {
+                yes: Default::default(),
+                no: Default::default(),
+                abstain: Default::default(),
+                veto: Uint128::new(100),
+            };
+            assert_opened(&env, suite(&env, &quorum, &votes, votes.total(), false));
+        }
+
+        #[test]
+        fn test_out_of_voting_period() {
+            let quorum = Threshold {
+                threshold: Decimal::percent(50),
+                quorum: Decimal::percent(40),
+                veto_threshold: Decimal::percent(33),
+            };
+
+            let env = mock_env();
+
+            // === expired & over quorum (passed)
+            // over quorum (40% of 30 = 12), over threshold (7/11 > 50%)
+            let pass = Votes {
+                yes: Uint128::new(7),
+                no: Uint128::new(3),
+                abstain: Uint128::new(2),
+                veto: Uint128::new(1),
+            };
+            let weight = Uint128::new(30);
+            assert_passed(&env, suite(&env, &quorum, &pass, weight, true));
+
+            // === expired & over quorum & abstain buffer (passed)
+            // over quorum, threshold passes if we ignore abstain
+            // 17 total votes w/ abstain => 40% quorum of 40 total
+            // 6 yes / (6 yes + 4 no + 2 votes) => 50% threshold
+            let pass = Votes {
+                yes: Uint128::new(6),
+                no: Uint128::new(4),
+                abstain: Uint128::new(5),
+                veto: Uint128::new(2),
+            };
+            let weight = Uint128::new(40);
+            assert_passed(&env, suite(&env, &quorum, &pass, weight, true));
+
+            // === expired & under quorum (rejected)
+            // under quorum (40% of 33 = 13.2 > 13)
+            let reject = Votes {
+                yes: Uint128::new(7),
+                no: Uint128::new(3),
+                abstain: Uint128::new(2),
+                veto: Uint128::new(1),
+            };
+            let weight = Uint128::new(33);
+            assert_rejected(&env, suite(&env, &quorum, &reject, weight, true));
+
+            // === expired & under threshold (rejected)
+            // over quorum (40% of 20 = 8)
+            // under pass threshold (50% of (6 + 5 + 2) = 6.5 > 6)
+            // under veto threshold (33% of 20 = 6.6 > 2)
+            let reject = Votes {
+                yes: Uint128::new(6),
+                no: Uint128::new(5),
+                abstain: Uint128::new(2),
+                veto: Uint128::new(2),
+            };
+            let weight = Uint128::new(20);
+            assert_rejected(&env, suite(&env, &quorum, &reject, weight, true));
+
+            // === expired & vetoed (rejected)
+            // over quorum (40% of 23 = 9.2)
+            // over pass threshold (50% of (11 + 2 + 8) = 10.5 < 11)
+            // over veto threshold (33% of 23 = 7.59 < 8)
+            let reject = Votes {
+                yes: Uint128::new(11),
+                no: Uint128::new(2),
+                abstain: Uint128::new(2),
+                veto: Uint128::new(8),
+            };
+            let weight = Uint128::new(23);
+            assert_vetoed(&env, suite(&env, &quorum, &reject, weight, true));
+        }
+
+        #[test]
+        fn quorum_edge_cases() {
+            // when we pass absolute threshold (everyone else voting no, we pass), but still don't hit quorum
+            let quorum = Threshold {
+                threshold: Decimal::percent(60),
+                quorum: Decimal::percent(80),
+                veto_threshold: Decimal::percent(33),
+            };
+
+            let env = mock_env();
+
+            // try 9 yes, 1 no (out of 15) -> 90% voter threshold, 60% absolute threshold, still no quorum
+            // doesn't matter if expired or not
+            let missing_voters = Votes {
+                yes: Uint128::new(9),
+                no: Uint128::new(1),
+                abstain: Uint128::new(0),
+                veto: Uint128::new(0),
+            };
+            assert_rejected(
+                &env,
+                suite(&env, &quorum, &missing_voters, Uint128::new(15), true),
+            );
+
+            // 1 less yes, 3 vetos and this passes only when expired
+            let wait_til_expired = Votes {
+                yes: Uint128::new(8),
+                no: Uint128::new(1),
+                abstain: Uint128::new(0),
+                veto: Uint128::new(3),
+            };
+            assert_passed(
+                &env,
+                suite(&env, &quorum, &wait_til_expired, Uint128::new(15), true),
+            );
+
+            // 9 yes and 3 nos passes early
+            let passes_early = Votes {
+                yes: Uint128::new(9),
+                no: Uint128::new(3),
+                abstain: Uint128::new(0),
+                veto: Uint128::new(0),
+            };
+            assert_passed(
+                &env,
+                suite(&env, &quorum, &passes_early, Uint128::new(15), true),
+            );
+        }
     }
 }

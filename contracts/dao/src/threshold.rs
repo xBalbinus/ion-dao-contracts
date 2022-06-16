@@ -47,7 +47,6 @@ fn valid_percentage(percent: &Decimal) -> Result<(), ContractError> {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     #[test]
