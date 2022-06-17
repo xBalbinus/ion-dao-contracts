@@ -4,7 +4,6 @@ use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, NativeBalance};
 use osmo_bindings::OsmosisMsg;
 
-use crate::{DEFAULT_LIMIT, Deps, MAX_LIMIT, QuerierWrapper};
 use crate::helpers::{get_and_check_limit, proposal_to_response};
 use crate::msg::{
     ConfigResponse, DepositResponse, DepositsQueryOption, DepositsResponse, ProposalResponse,
@@ -12,9 +11,10 @@ use crate::msg::{
     VoteInfo, VoteResponse, VotesResponse,
 };
 use crate::state::{
-    BALLOTS, CONFIG, DEPOSITS, GOV_TOKEN, IDX_DEPOSITS_BY_DEPOSITOR, IDX_PROPS_BY_PROPOSER,
-    IDX_PROPS_BY_STATUS, parse_id, PROPOSALS, STAKING_CONTRACT, TREASURY_TOKENS,
+    parse_id, BALLOTS, CONFIG, DEPOSITS, GOV_TOKEN, IDX_DEPOSITS_BY_DEPOSITOR,
+    IDX_PROPS_BY_PROPOSER, IDX_PROPS_BY_STATUS, PROPOSALS, STAKING_CONTRACT, TREASURY_TOKENS,
 };
+use crate::{Deps, QuerierWrapper, DEFAULT_LIMIT, MAX_LIMIT};
 
 fn query_balance_with_asset_type(
     querier: QuerierWrapper,
