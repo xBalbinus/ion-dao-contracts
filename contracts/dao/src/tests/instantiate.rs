@@ -5,8 +5,7 @@ use cw_multi_test::Executor;
 use cw_utils::Duration;
 use osmo_bindings_test::OsmosisApp;
 
-use crate::msg::{GovToken, InstantiateMsg, QueryMsg};
-use crate::query::{ConfigResponse, TokenListResponse};
+use crate::msg::{ConfigResponse, GovToken, InstantiateMsg, QueryMsg, TokenListResponse};
 use crate::state::Threshold;
 use crate::tests::suite::{contract_dao, contract_stake};
 use crate::ContractError;
@@ -41,14 +40,14 @@ fn happy_init_msg(stake: Stake) -> InstantiateMsg {
             },
         },
         threshold: Threshold {
-            threshold: Decimal::from_ratio(50u128, 100u128),
-            quorum: Decimal::from_ratio(40u128, 100u128),
-            veto_threshold: Decimal::from_ratio(33u128, 100u128),
+            threshold: Decimal::percent(50),
+            quorum: Decimal::percent(40),
+            veto_threshold: Decimal::percent(33),
         },
         voting_period: Duration::Height(10),
         deposit_period: Duration::Height(20),
-        proposal_deposit_amount: Uint128::from(100u128),
-        proposal_deposit_min_amount: Uint128::from(10u128),
+        proposal_deposit_amount: Uint128::new(100),
+        proposal_deposit_min_amount: Uint128::new(10),
     }
 }
 
