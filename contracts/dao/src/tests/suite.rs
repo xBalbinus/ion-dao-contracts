@@ -538,11 +538,7 @@ impl Suite {
             .query_wasm_smart(&self.dao, &crate::msg::QueryMsg::ProposalCount {})
     }
 
-    pub fn query_vote(
-        &self,
-        proposal_id: u64,
-        voter: &str,
-    ) -> StdResult<crate::msg::VotesResponse> {
+    pub fn query_vote(&self, proposal_id: u64, voter: &str) -> StdResult<crate::msg::VoteResponse> {
         self.app.borrow().wrap().query_wasm_smart(
             &self.dao,
             &crate::msg::QueryMsg::Vote {
