@@ -1,11 +1,13 @@
 use anyhow::Result as AnyResult;
 use cosmwasm_std::testing::mock_info;
-use cosmwasm_std::{coin, coins, Addr, BankMsg, Coin, Empty, Uint128};
+use cosmwasm_std::{coin, coins, Addr, BankMsg, Coin, Uint128};
 use cw_controllers::Claim;
 use cw_multi_test::{
-    next_block, App, AppResponse, BankSudo, Contract, ContractWrapper, Executor, SudoMsg,
+    next_block, AppResponse, BankSudo, Contract, ContractWrapper, Executor, SudoMsg,
 };
 use cw_utils::Expiration::AtHeight;
+use osmo_bindings::{OsmosisMsg, OsmosisQuery};
+use osmo_bindings_test::OsmosisApp;
 
 use crate::msg::{
     ClaimsResponse, Duration, ExecuteMsg, GetConfigResponse, QueryMsg,
@@ -23,11 +25,11 @@ const ADDR2: &str = "addr0002";
 const ADDR3: &str = "addr0003";
 const ADDR4: &str = "addr0004";
 
-fn mock_app() -> App {
-    App::default()
+fn mock_app() -> OsmosisApp {
+    OsmosisApp::default()
 }
 
-fn mock_staking_code() -> Box<dyn Contract<Empty>> {
+fn mock_staking_code() -> Box<dyn Contract<OsmosisMsg, OsmosisQuery>> {
     Box::new(ContractWrapper::new(
         crate::contract::execute,
         crate::contract::instantiate,
@@ -35,7 +37,7 @@ fn mock_staking_code() -> Box<dyn Contract<Empty>> {
     ))
 }
 
-fn mock_staking(app: &mut App, unstaking_duration: Option<Duration>) -> Stake {
+fn mock_staking(app: &mut OsmosisApp, unstaking_duration: Option<Duration>) -> Stake {
     let staking_code_id = app.store_code(mock_staking_code());
     let msg = crate::msg::InstantiateMsg {
         admin: Some(Addr::unchecked(ADDR_OWNER)),
@@ -57,7 +59,7 @@ fn mock_staking(app: &mut App, unstaking_duration: Option<Duration>) -> Stake {
 }
 
 fn setup_test_case(
-    app: &mut App,
+    app: &mut OsmosisApp,
     initial_balances: Vec<(&str, u128)>,
     unstaking_duration: Option<Duration>,
 ) -> Stake {
@@ -76,7 +78,7 @@ fn setup_test_case(
     staking
 }
 
-fn get_balance(app: &App, addr: &str) -> Uint128 {
+fn get_balance(app: &OsmosisApp, addr: &str) -> Uint128 {
     app.wrap().query_balance(addr, DENOM).unwrap().amount
 }
 
@@ -87,7 +89,12 @@ struct Stake {
 impl Stake {
     // ============================ EXECUTIONS
 
-    pub fn stake(&self, app: &mut App, sender: &Addr, amount: Coin) -> AnyResult<AppResponse> {
+    pub fn stake(
+        &self,
+        app: &mut OsmosisApp,
+        sender: &Addr,
+        amount: Coin,
+    ) -> AnyResult<AppResponse> {
         app.execute_contract(
             sender.clone(),
             self.address.clone(),
@@ -96,7 +103,12 @@ impl Stake {
         )
     }
 
-    pub fn fund(&self, app: &mut App, sender: &Addr, amount: Coin) -> AnyResult<AppResponse> {
+    pub fn fund(
+        &self,
+        app: &mut OsmosisApp,
+        sender: &Addr,
+        amount: Coin,
+    ) -> AnyResult<AppResponse> {
         app.execute_contract(
             sender.clone(),
             self.address.clone(),
@@ -105,7 +117,12 @@ impl Stake {
         )
     }
 
-    pub fn unstake(&self, app: &mut App, sender: &Addr, amount: Uint128) -> AnyResult<AppResponse> {
+    pub fn unstake(
+        &self,
+        app: &mut OsmosisApp,
+        sender: &Addr,
+        amount: Uint128,
+    ) -> AnyResult<AppResponse> {
         app.execute_contract(
             sender.clone(),
             self.address.clone(),
@@ -114,7 +131,7 @@ impl Stake {
         )
     }
 
-    pub fn claim(&self, app: &mut App, sender: &Addr) -> AnyResult<AppResponse> {
+    pub fn claim(&self, app: &mut OsmosisApp, sender: &Addr) -> AnyResult<AppResponse> {
         app.execute_contract(
             sender.clone(),
             self.address.clone(),
@@ -125,7 +142,7 @@ impl Stake {
 
     pub fn update_config(
         &self,
-        app: &mut App,
+        app: &mut OsmosisApp,
         sender: &Addr,
         admin: Option<Addr>,
         duration: Option<Duration>,
@@ -142,7 +159,7 @@ impl Stake {
 
     pub fn query_staked_balance_at_height(
         &self,
-        app: &App,
+        app: &OsmosisApp,
         address: impl Into<String>,
         height: Option<u64>,
     ) -> StakedBalanceAtHeightResponse {
@@ -159,7 +176,7 @@ impl Stake {
 
     pub fn query_total_staked_at_height(
         &self,
-        app: &App,
+        app: &OsmosisApp,
         height: Option<u64>,
     ) -> TotalStakedAtHeightResponse {
         app.wrap()
@@ -167,7 +184,11 @@ impl Stake {
             .unwrap()
     }
 
-    pub fn query_staked_value(&self, app: &App, address: impl Into<String>) -> StakedValueResponse {
+    pub fn query_staked_value(
+        &self,
+        app: &OsmosisApp,
+        address: impl Into<String>,
+    ) -> StakedValueResponse {
         app.wrap()
             .query_wasm_smart(
                 &self.address,
@@ -178,19 +199,19 @@ impl Stake {
             .unwrap()
     }
 
-    pub fn query_total_value(&self, app: &App) -> TotalValueResponse {
+    pub fn query_total_value(&self, app: &OsmosisApp) -> TotalValueResponse {
         app.wrap()
             .query_wasm_smart(&self.address, &QueryMsg::TotalValue {})
             .unwrap()
     }
 
-    pub fn query_config(&self, app: &App) -> GetConfigResponse {
+    pub fn query_config(&self, app: &OsmosisApp) -> GetConfigResponse {
         app.wrap()
             .query_wasm_smart(&self.address, &QueryMsg::GetConfig {})
             .unwrap()
     }
 
-    pub fn query_claims(&self, app: &App, address: impl Into<String>) -> ClaimsResponse {
+    pub fn query_claims(&self, app: &OsmosisApp, address: impl Into<String>) -> ClaimsResponse {
         app.wrap()
             .query_wasm_smart(
                 &self.address,

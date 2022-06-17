@@ -4,7 +4,6 @@ use std::fs::create_dir_all;
 use cosmwasm_schema::{export_schema_with_title, remove_schemas, schema_for};
 
 use ion_dao::msg;
-use ion_dao::query;
 use ion_dao::state;
 
 fn main() {
@@ -25,37 +24,44 @@ fn main() {
     export_schema_with_title(&schema_for!(state::Threshold), &out_dir, "Threshold");
 
     export_schema_with_title(
-        &schema_for!(query::ConfigResponse),
+        &schema_for!(msg::ConfigResponse),
         &out_dir,
         "ConfigResponse",
     );
     export_schema_with_title(
-        &schema_for!(query::TokenListResponse),
+        &schema_for!(msg::TokenListResponse),
         &out_dir,
         "TokenListResponse",
     );
     export_schema_with_title(
-        &schema_for!(query::TokenBalancesResponse),
+        &schema_for!(msg::TokenBalancesResponse),
         &out_dir,
         "TokenBalancesResponse",
     );
 
     export_schema_with_title(
-        &schema_for!(query::ProposalResponse),
+        &schema_for!(msg::ProposalResponse),
         &out_dir,
         "ProposalResponse",
     );
     export_schema_with_title(
-        &schema_for!(query::ProposalsResponse),
+        &schema_for!(msg::ProposalsResponse),
         &out_dir,
         "ProposalsResponse",
     );
 
-    export_schema_with_title(&schema_for!(query::VoteInfo), &out_dir, "VoteInfo");
-    export_schema_with_title(&schema_for!(query::VoteResponse), &out_dir, "VoteResponse");
+    export_schema_with_title(&schema_for!(msg::VoteInfo), &out_dir, "VoteInfo");
+    export_schema_with_title(&schema_for!(msg::VoteResponse), &out_dir, "VoteResponse");
+    export_schema_with_title(&schema_for!(msg::VotesResponse), &out_dir, "VotesResponse");
+
     export_schema_with_title(
-        &schema_for!(query::VotesResponse),
+        &schema_for!(msg::DepositResponse),
         &out_dir,
-        "VotesResponse",
+        "DepositResponse",
+    );
+    export_schema_with_title(
+        &schema_for!(msg::DepositsResponse),
+        &out_dir,
+        "DepositsResponse",
     );
 }

@@ -1,6 +1,6 @@
 {
   "name": "@alpha-dao/ion-dao-types",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Official types of ion dao contract",
   "repository": "git://github.com/alpha-dao/ion-dao-contracts.git",
   "main": "dist/index.js",

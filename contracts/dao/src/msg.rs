@@ -1,10 +1,14 @@
-use cosmwasm_std::{Addr, CosmosMsg, Empty, Order, Uint128};
-use cw20::Denom;
-use cw3::Vote;
+use std::fmt;
+
+use cosmwasm_std::{Addr, CosmosMsg, Decimal, Empty, Order, Uint128};
+use cw20::{Balance, Denom};
+use cw3::{Status, Vote};
 use cw_utils::{Duration, Expiration};
+use osmo_bindings::OsmosisMsg;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::proposal::{BlockTime, Votes};
 use crate::state::Config;
 use crate::threshold::Threshold;
 
@@ -47,7 +51,7 @@ pub struct ProposeMsg {
     pub title: String,
     pub link: String,
     pub description: String,
-    pub msgs: Vec<CosmosMsg<Empty>>,
+    pub msgs: Vec<CosmosMsg<OsmosisMsg>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -111,45 +115,316 @@ impl From<RangeOrder> for Order {
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum ProposalsQueryOption {
-    FindByStatus { status: cw3::Status },
+    FindByStatus { status: Status },
     FindByProposer { proposer: Addr },
     Everything {},
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 #[serde(rename_all = "snake_case")]
+pub enum DepositsQueryOption {
+    FindByProposal {
+        proposal_id: u64,
+        start: Option<String>,
+    },
+    FindByDepositor {
+        depositor: String,
+        start: Option<u64>,
+    },
+    Everything {
+        start: Option<(u64, String)>,
+    },
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    /// Returns Config
+    /// # GetConfig
+    ///
+    /// Returns [ConfigResponse]
+    ///
+    /// ## Example
+    ///
+    /// ```json
+    /// {
+    ///    "get_config": {}
+    /// }
+    /// ```
     GetConfig {},
-    /// Return list of cw20 Tokens associated with the DAO Treasury
+
+    /// # TokenList
+    ///
+    /// Queries list of cw20 Tokens associated with the DAO Treasury.  
+    /// Returns [TokenListResponse]
+    ///
+    /// ## Example
+    ///
+    /// ```json
+    /// {
+    ///   "token_list": {}
+    /// }
+    /// ```
     TokenList {},
-    /// Returns All DAO Cw20 Balances
+
+    /// # TokenBalances
+    ///
+    /// Returns [TokenBalancesResponse]
+    /// All DAO Cw20 Balances
+    ///
+    /// ## Example
+    ///
+    /// ```json
+    /// {
+    ///   "token_balances": {
+    ///     "start"?: {
+    ///       "native": "uosmo" | "cw20": "osmo1deadbeef"
+    ///     },
+    ///     "limit": 30 | 10,
+    ///     "order": "asc" | "desc"
+    ///   }
+    /// }
+    /// ```
     TokenBalances {
         start: Option<Denom>,
         limit: Option<u32>,
         order: Option<RangeOrder>,
     },
 
-    /// Returns ProposalResponse
+    /// # Proposal
+    ///
+    /// Returns [ProposalResponse]
+    ///
+    /// ## Example
+    ///
+    /// ```json
+    /// {
+    ///   "proposal": {
+    ///     "proposal_id": 1
+    ///   }
+    /// }
+    /// ```
     Proposal { proposal_id: u64 },
-    /// Returns ProposalListResponse
+
+    /// # Proposals
+    ///
+    /// Returns [ProposalsResponse]
+    ///
+    /// ## Example
+    ///
+    /// ```json
+    /// {
+    ///   "proposals": {
+    ///     "query": {
+    ///       "find_by_status": { "status": "pending" | .. | "executed" }
+    ///         | "find_by_proposer": { "proposer": "osmo1deadbeef" }
+    ///         | "everything": {}
+    ///     },
+    ///     "start"?: 10,
+    ///     "limit": 30 | 10,
+    ///     "order": "asc" | "desc"
+    ///   }
+    /// }
+    /// ```
     Proposals {
         query: ProposalsQueryOption,
         start: Option<u64>,
         limit: Option<u32>,
         order: Option<RangeOrder>,
     },
+
+    /// # ProposalCount
+    ///
     /// Returns the number of proposals in the DAO (u64)
+    ///
+    /// ## Example
+    ///
+    /// ```json
+    /// {
+    ///   "proposal_count": {}
+    /// }
+    /// ```
     ProposalCount {},
-    /// Returns VoteResponse
+
+    /// # Vote
+    ///
+    /// Returns [VoteResponse]
+    ///
+    /// ## Example
+    ///
+    /// ```json
+    /// {
+    ///   "vote": {
+    ///     "proposal_id": 1,
+    ///     "voter": "osmo1deadbeef"
+    ///   }
+    /// }
+    /// ```
     Vote { proposal_id: u64, voter: String },
-    /// Returns VoteListResponse
+
+    /// # Votes
+    ///
+    /// Returns [VotesResponse]
+    ///
+    /// ## Example
+    ///
+    /// ```json
+    /// {
+    ///   "votes": {
+    ///     "proposal_id": 1,
+    ///     "start"?: "osmo1deadbeef",
+    ///     "limit": 30 | 10,
+    ///     "order": "asc" | "desc"
+    ///   }
+    /// }
+    /// ```
     Votes {
         proposal_id: u64,
         start: Option<String>,
         limit: Option<u32>,
         order: Option<RangeOrder>,
     },
+
+    /// # Deposit
+    ///
+    /// Queries single deposit info by proposal id & address of depositor.  
+    /// Returns [DepositResponse]
+    ///
+    /// ## Example
+    ///
+    /// ```json
+    /// {
+    ///   "deposit": {
+    ///     "proposal_id": 1,
+    ///     "depositor": "osmo1deadbeef"
+    ///   }
+    /// }
+    /// ```
+    Deposit { proposal_id: u64, depositor: String },
+
+    /// # Deposits
+    ///
+    /// Queries multiple deposits info by
+    /// 1. proposal id
+    /// 2. depositor address
+    /// Returns [DepositsResponse]
+    ///
+    /// ## Example
+    ///
+    /// ```json
+    /// {
+    ///   "deposits": {
+    ///     "query": {
+    ///       "find_by_proposal": {
+    ///         "proposal_id": 1,
+    ///         "start"?: "osmo1deadbeef"
+    ///       } |
+    ///       "find_by_depositor": {
+    ///         "depositor": "osmo1deadbeef",
+    ///         "start"?: 1
+    ///       } |
+    ///       "everything": {
+    ///         "start"?: [1, "osmo1deadbeef"]
+    ///       }
+    ///     },
+    ///     "limit": 30 | 10,
+    ///     "order": "asc" | "desc"
+    ///   }
+    /// }
+    /// ```
+    Deposits {
+        query: DepositsQueryOption,
+        limit: Option<u32>,
+        order: Option<RangeOrder>,
+    },
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct ConfigResponse {
+    pub config: Config,
+    pub gov_token: String,
+    pub staking_contract: Addr,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct TokenListResponse {
+    pub token_list: Vec<Denom>,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct TokenBalancesResponse {
+    pub balances: Vec<Balance>,
+}
+
+/// Note, if you are storing custom messages in the proposal,
+/// the querier needs to know what possible custom message types
+/// those are in order to parse the response
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct ProposalResponse<T = Empty>
+where
+    T: Clone + fmt::Debug + PartialEq + JsonSchema,
+{
+    pub id: u64,
+
+    // payload
+    pub title: String,
+    pub link: String,
+    pub description: String,
+    pub proposer: String,
+    pub msgs: Vec<CosmosMsg<T>>,
+    pub status: Status,
+
+    // time
+    pub submitted_at: BlockTime,
+    pub deposit_ends_at: Expiration,
+    pub vote_starts_at: BlockTime,
+    pub vote_ends_at: Expiration,
+
+    // vote
+    pub votes: Votes,
+    pub quorum: Decimal,
+    pub threshold: Threshold,
+    pub total_votes: Uint128,
+    pub total_weight: Uint128,
+    pub total_deposit: Uint128,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct ProposalsResponse<T = Empty>
+where
+    T: Clone + fmt::Debug + PartialEq + JsonSchema,
+{
+    pub proposals: Vec<ProposalResponse<T>>,
+}
+
+/// Returns the vote (opinion as well as weight counted) as well as
+/// the address of the voter who submitted it
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct VoteInfo {
+    pub voter: String,
+    pub vote: Vote,
+    pub weight: Uint128,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct VoteResponse {
+    pub vote: Option<VoteInfo>,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct VotesResponse {
+    pub votes: Vec<VoteInfo>,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct DepositResponse {
+    pub proposal_id: u64,
+    pub depositor: String,
+    pub amount: Uint128,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct DepositsResponse {
+    pub deposits: Vec<DepositResponse>,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]

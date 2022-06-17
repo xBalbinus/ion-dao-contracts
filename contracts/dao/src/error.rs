@@ -39,6 +39,12 @@ pub enum ContractError {
     #[error("Already voted on this proposal")]
     AlreadyVoted {},
 
+    #[error("Invalid proposal status. current: {current}, desired: {desired}")]
+    InvalidProposalStatus { current: String, desired: String },
+
+    #[error("Total staked amount is too low")]
+    LackOfStakes {},
+
     #[error("Cannot deposit to non-pended proposals")]
     WrongDepositStatus {},
 

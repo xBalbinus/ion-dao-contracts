@@ -1,15 +1,22 @@
 use cosmwasm_std::{
-    to_binary, Addr, BlockInfo, CosmosMsg, Decimal, Deps, Env, MessageInfo, StdError, StdResult,
-    Uint128, WasmMsg,
+    Addr, BlockInfo, CosmosMsg, Decimal, Env, MessageInfo, QuerierWrapper, StdError, StdResult,
+    to_binary, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
 use cw_utils::{Duration, Expiration};
+use osmo_bindings::{OsmosisMsg, OsmosisQuery};
 
-use crate::query::ProposalResponse;
-use crate::state::{Proposal, STAKING_CONTRACT};
 use crate::ContractError;
+use crate::msg::ProposalResponse;
+use crate::state::{BlockTime, Proposal, STAKING_CONTRACT};
 
-pub fn duration_to_expiry(block: &BlockInfo, period: &Duration) -> Expiration {
+/// type aliases
+pub type Response = cosmwasm_std::Response<OsmosisMsg>;
+pub type SubMsg = cosmwasm_std::SubMsg<OsmosisMsg>;
+pub type Deps<'a> = cosmwasm_std::Deps<'a, OsmosisQuery>;
+pub type DepsMut<'a> = cosmwasm_std::DepsMut<'a, OsmosisQuery>;
+
+pub fn duration_to_expiry(block: &BlockTime, period: &Duration) -> Expiration {
     match period {
         Duration::Height(height) => Expiration::AtHeight(block.height + height),
         Duration::Time(time) => Expiration::AtTime(block.time.plus_seconds(*time)),
@@ -74,11 +81,14 @@ pub fn get_config(deps: Deps) -> StdResult<ion_stake::msg::GetConfigResponse> {
     Ok(res)
 }
 
-pub fn get_voting_power_at_height(deps: Deps, address: Addr, height: u64) -> StdResult<Uint128> {
-    let staking_contract = STAKING_CONTRACT.load(deps.storage)?;
-
+pub fn get_voting_power_at_height(
+    querier: QuerierWrapper<OsmosisQuery>,
+    staking_contract: Addr,
+    address: Addr,
+    height: u64,
+) -> StdResult<Uint128> {
     // Get voting power at height
-    let balance: ion_stake::msg::StakedBalanceAtHeightResponse = deps.querier.query_wasm_smart(
+    let balance: ion_stake::msg::StakedBalanceAtHeightResponse = querier.query_wasm_smart(
         staking_contract,
         &ion_stake::msg::QueryMsg::StakedBalanceAtHeight {
             address: address.to_string(),
@@ -88,11 +98,19 @@ pub fn get_voting_power_at_height(deps: Deps, address: Addr, height: u64) -> Std
     Ok(balance.balance)
 }
 
-pub fn proposal_to_response(block: &BlockInfo, id: u64, prop: Proposal) -> ProposalResponse {
+pub fn proposal_to_response(
+    block: &BlockInfo,
+    id: u64,
+    prop: Proposal,
+) -> ProposalResponse<OsmosisMsg> {
     let status = prop.current_status(block);
     let total_weight = prop.total_weight;
     let total_votes = prop.votes.total();
-    let quorum = Decimal::from_ratio(total_votes, total_weight);
+    let quorum = if total_weight.is_zero() {
+        Decimal::zero()
+    } else {
+        Decimal::from_ratio(total_votes, total_weight)
+    };
 
     ProposalResponse {
         id,
@@ -100,21 +118,21 @@ pub fn proposal_to_response(block: &BlockInfo, id: u64, prop: Proposal) -> Propo
         title: prop.title,
         link: prop.link,
         description: prop.description,
-        proposer: prop.proposer,
+        proposer: prop.proposer.to_string(),
         msgs: prop.msgs,
         status,
 
-        deposit_starts_at: prop.deposit_starts_at,
+        submitted_at: prop.submitted_at,
+        deposit_ends_at: prop.deposit_ends_at,
         vote_starts_at: prop.vote_starts_at,
-        expires_at: prop.expires_at,
+        vote_ends_at: prop.vote_ends_at,
 
         votes: prop.votes,
         quorum,
         threshold: prop.threshold,
         total_votes,
         total_weight,
-
-        deposit_amount: prop.deposit,
+        total_deposit: prop.total_deposit,
     }
 }
 
