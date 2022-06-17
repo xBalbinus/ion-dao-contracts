@@ -209,7 +209,7 @@ impl SuiteBuilder {
             )
             .unwrap();
 
-        let config: crate::query::ConfigResponse = app
+        let config: crate::msg::ConfigResponse = app
             .borrow()
             .wrap()
             .query_wasm_smart(&dao_addr, &crate::msg::QueryMsg::GetConfig {})
@@ -436,14 +436,14 @@ impl Suite {
      * DAO CONTRACT QUERIES
      */
 
-    pub fn query_config(&self) -> StdResult<crate::query::ConfigResponse> {
+    pub fn query_config(&self) -> StdResult<crate::msg::ConfigResponse> {
         self.app
             .borrow()
             .wrap()
             .query_wasm_smart(&self.dao, &crate::msg::QueryMsg::GetConfig {})
     }
 
-    pub fn query_token_list(&self) -> StdResult<crate::query::TokenListResponse> {
+    pub fn query_token_list(&self) -> StdResult<crate::msg::TokenListResponse> {
         self.app
             .borrow()
             .wrap()
@@ -455,7 +455,7 @@ impl Suite {
         start: Option<Denom>,
         limit: Option<u32>,
         order: Option<RangeOrder>,
-    ) -> StdResult<crate::query::TokenBalancesResponse> {
+    ) -> StdResult<crate::msg::TokenBalancesResponse> {
         self.app.borrow().wrap().query_wasm_smart(
             &self.dao,
             &crate::msg::QueryMsg::TokenBalances {
@@ -469,7 +469,7 @@ impl Suite {
     pub fn query_proposal(
         &self,
         proposal_id: u64,
-    ) -> StdResult<crate::query::ProposalResponse<OsmosisMsg>> {
+    ) -> StdResult<crate::msg::ProposalResponse<OsmosisMsg>> {
         self.app
             .borrow()
             .wrap()
@@ -482,7 +482,7 @@ impl Suite {
         start: Option<u64>,
         limit: Option<u32>,
         order: Option<RangeOrder>,
-    ) -> StdResult<crate::query::ProposalsResponse<OsmosisMsg>> {
+    ) -> StdResult<crate::msg::ProposalsResponse<OsmosisMsg>> {
         self.app.borrow().wrap().query_wasm_smart(
             &self.dao,
             &crate::msg::QueryMsg::Proposals {
@@ -505,7 +505,7 @@ impl Suite {
         &self,
         proposal_id: u64,
         voter: &str,
-    ) -> StdResult<crate::query::VotesResponse> {
+    ) -> StdResult<crate::msg::VotesResponse> {
         self.app.borrow().wrap().query_wasm_smart(
             &self.dao,
             &crate::msg::QueryMsg::Vote {
@@ -521,7 +521,7 @@ impl Suite {
         start: Option<String>,
         limit: Option<u32>,
         order: Option<RangeOrder>,
-    ) -> StdResult<crate::query::VotesResponse> {
+    ) -> StdResult<crate::msg::VotesResponse> {
         self.app.borrow().wrap().query_wasm_smart(
             &self.dao,
             &crate::msg::QueryMsg::Votes {
@@ -537,7 +537,7 @@ impl Suite {
         &self,
         proposal_id: u64,
         depositor: &str,
-    ) -> StdResult<crate::query::DepositResponse> {
+    ) -> StdResult<crate::msg::DepositResponse> {
         self.app.borrow().wrap().query_wasm_smart(
             &self.dao,
             &crate::msg::QueryMsg::Deposit {
@@ -552,7 +552,7 @@ impl Suite {
         query: crate::msg::DepositsQueryOption,
         limit: Option<u32>,
         order: Option<RangeOrder>,
-    ) -> StdResult<crate::query::DepositsResponse> {
+    ) -> StdResult<crate::msg::DepositsResponse> {
         self.app.borrow().wrap().query_wasm_smart(
             &self.dao,
             &crate::msg::QueryMsg::Deposits {

@@ -5,8 +5,8 @@ use cw_multi_test::Executor;
 use cw_utils::Duration;
 use osmo_bindings_test::OsmosisApp;
 
+use crate::msg::{ConfigResponse, TokenListResponse};
 use crate::msg::{GovToken, InstantiateMsg, QueryMsg};
-use crate::query::{ConfigResponse, TokenListResponse};
 use crate::state::Threshold;
 use crate::tests::suite::{contract_dao, contract_stake};
 use crate::ContractError;
