@@ -350,9 +350,9 @@ mod vote {
         let votes_resp = suite.query_votes(1, None, None, None).unwrap();
         assert_eq!(
             votes_resp,
-            crate::query::VotesResponse {
+            crate::msg::VotesResponse {
                 votes: cases1
-                    .map(|(voter, weight, vote)| crate::query::VoteInfo {
+                    .map(|(voter, weight, vote)| crate::msg::VoteInfo {
                         voter: voter.to_string(),
                         vote,
                         weight: Uint128::new(weight)
@@ -385,9 +385,9 @@ mod vote {
         let votes_resp = suite.query_votes(1, None, None, None).unwrap();
         assert_eq!(
             votes_resp,
-            crate::query::VotesResponse {
+            crate::msg::VotesResponse {
                 votes: cases2
-                    .map(|(voter, weight, vote)| crate::query::VoteInfo {
+                    .map(|(voter, weight, vote)| crate::msg::VoteInfo {
                         voter: voter.to_string(),
                         vote,
                         weight: Uint128::new(weight)
