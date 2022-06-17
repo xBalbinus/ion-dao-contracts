@@ -369,7 +369,7 @@ where
     pub title: String,
     pub link: String,
     pub description: String,
-    pub proposer: String,
+    pub proposer: Addr,
     pub msgs: Vec<CosmosMsg<T>>,
     pub status: Status,
 
