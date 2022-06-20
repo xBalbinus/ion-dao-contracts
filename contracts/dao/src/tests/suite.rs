@@ -5,11 +5,12 @@ use cosmwasm_std::{coins, Addr, CosmosMsg, Decimal, StdResult, Uint128};
 use cw20::Denom;
 use cw3::Vote;
 use cw_multi_test::{AppResponse, BankSudo, Contract, ContractWrapper, Executor, SudoMsg};
-use cw_utils::Duration;
+use cw_utils::{Duration, Expiration};
 use osmo_bindings::{OsmosisMsg, OsmosisQuery};
 use osmo_bindings_test::OsmosisApp;
 
 use crate::msg::RangeOrder;
+use crate::state::Config;
 
 pub fn contract_dao() -> Box<dyn Contract<OsmosisMsg, OsmosisQuery>> {
     let contract = ContractWrapper::new(
@@ -33,7 +34,6 @@ pub fn contract_stake() -> Box<dyn Contract<OsmosisMsg, OsmosisQuery>> {
 #[derive(Debug)]
 pub struct SuiteBuilder {
     owner: Addr,
-    denom: String,
 
     funds: Vec<(Addr, Uint128)>,
     props: Vec<crate::msg::ProposeMsg>,
@@ -45,33 +45,28 @@ pub struct SuiteBuilder {
     deposits: (Uint128, Uint128),  // min, quo
 }
 
-#[allow(dead_code)]
 impl SuiteBuilder {
     pub fn new() -> Self {
-        let denom = "denom";
-        let label = "label";
-
         Self {
             owner: Addr::unchecked("owner"),
-            denom: denom.to_string(),
 
             funds: vec![],
             props: vec![],
             staked: vec![],
 
             gov_token: crate::msg::GovToken::Create {
-                denom: denom.to_string(),
-                label: label.to_string(),
+                denom: "denom".to_string(),
+                label: "label".to_string(),
                 stake_contract_code_id: 0,
                 unstaking_duration: Some(Duration::Height(10)),
             },
             threshold: crate::threshold::Threshold {
-                threshold: Decimal::from_ratio(50u64, 100u64), // 50%
-                quorum: Decimal::from_ratio(33u64, 100u64),    // 33%
-                veto_threshold: Decimal::from_ratio(33u64, 100u64), // 33%
+                threshold: Decimal::percent(50),      // 50%
+                quorum: Decimal::percent(33),         // 33%
+                veto_threshold: Decimal::percent(33), // 33%
             },
             periods: (Duration::Height(10), Duration::Height(15)),
-            deposits: (Uint128::from(10u128), Uint128::from(100u128)),
+            deposits: (Uint128::new(10), Uint128::new(100)),
         }
     }
 
@@ -88,11 +83,6 @@ impl SuiteBuilder {
             description: desc.to_string(),
             msgs,
         });
-        self
-    }
-
-    pub fn with_owner(mut self, owner: impl ToString) -> Self {
-        self.owner = Addr::unchecked(owner.to_string());
         self
     }
 
@@ -219,7 +209,7 @@ impl SuiteBuilder {
             app,
             dao: dao_addr,
             stake: config.staking_contract,
-            denom: self.denom.clone(),
+            denom: config.gov_token,
         };
 
         suite.app().next_block();
@@ -432,6 +422,53 @@ impl Suite {
         )
     }
 
+    pub fn pause(&mut self, pauser: &str, expiration: Expiration) -> AnyResult<AppResponse> {
+        self.app.borrow_mut().execute_contract(
+            Addr::unchecked(pauser),
+            self.dao.clone(),
+            &crate::msg::ExecuteMsg::PauseDAO { expiration },
+            &[],
+        )
+    }
+
+    pub fn update_config(&mut self, updater: &str, config: Config) -> AnyResult<AppResponse> {
+        self.app.borrow_mut().execute_contract(
+            Addr::unchecked(updater),
+            self.dao.clone(),
+            &crate::msg::ExecuteMsg::UpdateConfig(config),
+            &[],
+        )
+    }
+
+    pub fn update_staking_contract(
+        &mut self,
+        updater: &str,
+        staking: Addr,
+    ) -> AnyResult<AppResponse> {
+        self.app.borrow_mut().execute_contract(
+            Addr::unchecked(updater),
+            self.dao.clone(),
+            &crate::msg::ExecuteMsg::UpdateStakingContract {
+                new_staking_contract: staking,
+            },
+            &[],
+        )
+    }
+
+    pub fn update_token_list(
+        &mut self,
+        updater: &str,
+        to_add: Vec<Denom>,
+        to_remove: Vec<Denom>,
+    ) -> AnyResult<AppResponse> {
+        self.app.borrow_mut().execute_contract(
+            Addr::unchecked(updater),
+            self.dao.clone(),
+            &crate::msg::ExecuteMsg::UpdateTokenList { to_add, to_remove },
+            &[],
+        )
+    }
+
     /***
      * DAO CONTRACT QUERIES
      */
@@ -501,11 +538,7 @@ impl Suite {
             .query_wasm_smart(&self.dao, &crate::msg::QueryMsg::ProposalCount {})
     }
 
-    pub fn query_vote(
-        &self,
-        proposal_id: u64,
-        voter: &str,
-    ) -> StdResult<crate::msg::VotesResponse> {
+    pub fn query_vote(&self, proposal_id: u64, voter: &str) -> StdResult<crate::msg::VoteResponse> {
         self.app.borrow().wrap().query_wasm_smart(
             &self.dao,
             &crate::msg::QueryMsg::Vote {

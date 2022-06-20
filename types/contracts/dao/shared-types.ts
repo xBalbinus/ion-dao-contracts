@@ -1,5 +1,19 @@
 export type Vote = "yes" | "no" | "abstain" | "veto";
 /**
+ * Returns [VoteResponse]
+ *
+ * ## Example
+ *
+ * ```json { "vote": { "proposal_id": 1, "voter": "osmo1deadbeef" } } ```
+ */
+export interface Vote_1 {
+  vote: {
+    proposal_id: number;
+    voter: string;
+    [k: string]: unknown;
+  };
+}
+/**
  * A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.
  *
  * # Examples
@@ -439,6 +453,86 @@ export interface Votes {
   no: Uint128;
   veto: Uint128;
   yes: Uint128;
+}
+/**
+ * Returns [VotesResponse]
+ *
+ * ## Example
+ *
+ * ```json { "votes": { "proposal_id": 1, "start"?: "osmo1deadbeef", "limit": 30 | 10, "order": "asc" | "desc" } } ```
+ */
+export interface Votes_1 {
+  votes: {
+    limit?: number | null;
+    order?: RangeOrder | null;
+    proposal_id: number;
+    start?: string | null;
+    [k: string]: unknown;
+  };
+}
+export interface Proposal {
+  [k: string]: unknown;
+  deposit_base_amount: Uint128;
+  deposit_ends_at: Expiration;
+  /**
+   * Proposal Description
+   */
+  description: string;
+  /**
+   * Related link about this proposal
+   */
+  link: string;
+  /**
+   * List of messages to execute
+   */
+  msgs: CosmosMsgFor_OsmosisMsg[];
+  /**
+   * Address of proposer
+   */
+  proposer: Addr;
+  /**
+   * Current status of this proposal
+   */
+  status: Status;
+  /**
+   * Starting time / height information
+   */
+  submitted_at: BlockTime;
+  /**
+   * Pass requirements
+   */
+  threshold: Threshold;
+  /**
+   * Proposal title
+   */
+  title: string;
+  /**
+   * Amount of the native governance token required for voting
+   */
+  total_deposit: Uint128;
+  /**
+   * The total weight when the proposal started (used to calculate percentages)
+   */
+  total_weight: Uint128;
+  vote_ends_at: Expiration;
+  vote_starts_at: BlockTime;
+  /**
+   * summary of existing votes
+   */
+  votes: Votes;
+}
+/**
+ * Returns [ProposalResponse]
+ *
+ * ## Example
+ *
+ * ```json { "proposal": { "proposal_id": 1 } } ```
+ */
+export interface Proposal_1 {
+  proposal: {
+    proposal_id: number;
+    [k: string]: unknown;
+  };
 }
 /**
  * Returns the vote (opinion as well as weight counted) as well as the address of the voter who submitted it

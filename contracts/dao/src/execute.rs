@@ -1,26 +1,26 @@
 use std::ops::Add;
 
 use cosmwasm_std::{
-    Addr, BankMsg, BlockInfo, coins, Empty, Env, MessageInfo, Order, StdError, StdResult, Storage,
+    coins, Addr, BankMsg, BlockInfo, Empty, Env, MessageInfo, Order, StdError, StdResult, Storage,
     Uint128,
 };
 use cw20::Denom;
 use cw3::{Status, Vote};
 use cw_storage_plus::Bound;
-use cw_utils::{Expiration, may_pay};
+use cw_utils::{may_pay, Expiration};
 
-use crate::ContractError;
 use crate::helpers::{
     duration_to_expiry, get_and_check_limit, get_total_staked_supply, get_voting_power_at_height,
 };
 use crate::msg::ProposeMsg;
 use crate::state::{
-    Ballot, BALLOTS, Config, CONFIG, DAO_PAUSED, DEPOSITS, GOV_TOKEN, IDX_DEPOSITS_BY_DEPOSITOR, IDX_PROPS_BY_PROPOSER, IDX_PROPS_BY_STATUS,
-    next_id, Proposal, PROPOSALS, STAKING_CONTRACT,
-    TREASURY_TOKENS, Votes,
+    next_id, Ballot, Config, Proposal, Votes, BALLOTS, CONFIG, DAO_PAUSED, DEPOSITS, GOV_TOKEN,
+    IDX_DEPOSITS_BY_DEPOSITOR, IDX_PROPS_BY_PROPOSER, IDX_PROPS_BY_STATUS, PROPOSALS,
+    STAKING_CONTRACT, TREASURY_TOKENS,
 };
+use crate::ContractError;
 
-use super::{CosmosMsg, DepsMut, MAX_LIMIT, Response};
+use super::{CosmosMsg, DepsMut, Response, MAX_LIMIT};
 
 fn check_paused(storage: &dyn Storage, block: &BlockInfo) -> Result<(), ContractError> {
     let paused = DAO_PAUSED.may_load(storage)?;
@@ -33,10 +33,10 @@ fn check_paused(storage: &dyn Storage, block: &BlockInfo) -> Result<(), Contract
     Ok(())
 }
 
-fn check_proposal_status(proposal: &Proposal, desired_status: Status) -> Result<(), ContractError> {
-    if !proposal.status.eq(&desired_status) {
+fn check_status(origin_status: &Status, desired_status: Status) -> Result<(), ContractError> {
+    if !origin_status.eq(&desired_status) {
         return Err(ContractError::InvalidProposalStatus {
-            current: format!("{:?}", proposal.status),
+            current: format!("{:?}", origin_status),
             desired: format!("{:?}", desired_status),
         });
     }
@@ -215,7 +215,7 @@ pub fn deposit(
         .add_attribute("proposal_id", prop_id.to_string());
 
     let mut prop = PROPOSALS.load(deps.storage, prop_id)?;
-    check_proposal_status(&prop, Status::Pending)?;
+    check_status(&prop.status, Status::Pending)?;
     if prop.deposit_ends_at.is_expired(&env.block) {
         Err(ContractError::Expired {})
     } else {
@@ -247,7 +247,7 @@ pub fn vote(
 
     // Ensure proposal exists and can be voted on
     let mut prop = PROPOSALS.load(deps.storage, prop_id)?;
-    check_proposal_status(&prop, Status::Open)?;
+    check_status(&prop.status, Status::Open)?;
     if prop.vote_ends_at.is_expired(&env.block) {
         return Err(ContractError::Expired {});
     }
@@ -299,9 +299,9 @@ pub fn execute(
         return Err(ContractError::NotExpired {});
     }
 
-    prop.update_status(&env.block);
-    check_proposal_status(&prop, Status::Passed)?;
+    check_status(&prop.current_status(&env.block), Status::Passed)?;
     update_proposal_status(deps.storage, prop_id, &mut prop, Status::Executed)?;
+    prop.update_status(&env.block);
 
     let gov_token = GOV_TOKEN.load(deps.storage)?;
     let refunds = proposal_deposit_refund_msgs(deps.storage, prop_id, gov_token, None, None)?;
@@ -348,9 +348,9 @@ pub fn close(
     }
 
     let prev_status = prop.status;
-    prop.update_status(&env.block);
-    check_proposal_status(&prop, Status::Rejected)?;
+    check_status(&prop.current_status(&env.block), Status::Rejected)?;
     update_proposal_status(deps.storage, prop_id, &mut prop, Status::Rejected)?;
+    prop.update_status(&env.block);
 
     let mut resp = Response::new()
         .add_attribute("action", "close")
@@ -517,10 +517,10 @@ mod test {
             ..Default::default()
         };
 
-        super::check_proposal_status(&make_prop(Status::Pending), Status::Pending).unwrap();
+        super::check_status(&make_prop(Status::Pending).status, Status::Pending).unwrap();
 
         let err =
-            super::check_proposal_status(&make_prop(Status::Open), Status::Pending).unwrap_err();
+            super::check_status(&make_prop(Status::Open).status, Status::Pending).unwrap_err();
         assert_eq!(
             err,
             ContractError::InvalidProposalStatus {

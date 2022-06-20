@@ -10,7 +10,8 @@ export * from "./deposits_response";
 export * from "./execute_msg";
 export * from "./init_msg";
 export * from "./proposal_response";
-export * from "./proposal";
+// dedup emptied this file
+// export * from "./proposal";
 export * from "./proposals_response";
 export * from "./query_msg";
 export * from "./shared-types";
