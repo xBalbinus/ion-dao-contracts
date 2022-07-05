@@ -1,5 +1,6 @@
 use std::ops::Add;
 
+use cosmwasm_std::CosmosMsg::Bank;
 use cosmwasm_std::{
     coins, Addr, BankMsg, BlockInfo, Empty, Env, MessageInfo, Order, StdError, StdResult, Storage,
     Uint128,
@@ -138,7 +139,7 @@ pub fn propose(
     let gov_token = GOV_TOKEN.load(deps.storage)?;
 
     let received = may_pay(&info, gov_token.as_str())
-        .map_err(|e| ContractError::Std(StdError::generic_err(format!("{}", e))))?;
+        .map_err(|e| ContractError::Std(StdError::generic_err(format!("{:?}", e))))?;
     if received < cfg.proposal_min_deposit {
         return Err(ContractError::Unauthorized {});
     }
@@ -175,15 +176,26 @@ pub fn propose(
         total_deposit: received, // initial deposit = received
         deposit_base_amount: cfg.proposal_deposit,
     };
+
+    let mut resp = Response::new();
     if received >= cfg.proposal_deposit {
         prop.activate_voting_period(env.block.into(), &cfg.voting_period);
+
+        // refund exceeded amount
+        let gap = received - cfg.proposal_deposit;
+        if gap > 0 {
+            resp = resp.add_message(BankMsg::Send {
+                to_address: info.sender.to_string(),
+                amount: coins(gap.u128(), gov_token),
+            });
+        }
     }
 
     let id = next_id(deps.storage)?;
     create_deposit(deps.storage, id, &info.sender, &received)?;
     create_proposal(deps.storage, id, &info.sender, &prop)?;
 
-    Ok(Response::new()
+    Ok(resp
         .add_attribute("action", "propose")
         .add_attribute("sender", info.sender)
         .add_attribute("status", format!("{:?}", prop.status))
@@ -208,9 +220,9 @@ pub fn deposit(
         return Err(ContractError::Unauthorized {});
     }
 
-    let resp = Response::new()
+    let mut resp = Response::new()
         .add_attribute("action", "deposit")
-        .add_attribute("denom", gov_token)
+        .add_attribute("denom", gov_token.to_string())
         .add_attribute("amount", received.to_string())
         .add_attribute("proposal_id", prop_id.to_string());
 
@@ -227,6 +239,16 @@ pub fn deposit(
             update_proposal_status(deps.storage, prop_id, &mut prop, Status::Open)?;
             prop.activate_voting_period(env.block.into(), &cfg.voting_period);
             PROPOSALS.save(deps.storage, prop_id, &prop)?;
+
+            // refund exceeded amount
+            let gap = prop.total_deposit - cfg.proposal_deposit;
+            if gap > 0 {
+                resp = resp.add_message(BankMsg::Send {
+                    to_address: info.sender.to_string(),
+                    amount: coins(gap.u128(), gov_token),
+                });
+            }
+
             Ok(resp.add_attribute("result", "open"))
         } else {
             // pending = prevent default
