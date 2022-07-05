@@ -389,6 +389,8 @@ where
     pub total_votes: Uint128,
     pub total_weight: Uint128,
     pub total_deposit: Uint128,
+
+    pub deposit_claimable: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]

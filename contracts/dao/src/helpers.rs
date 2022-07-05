@@ -133,6 +133,8 @@ pub fn proposal_to_response(
         total_votes,
         total_weight,
         total_deposit: prop.total_deposit,
+
+        deposit_claimable: prop.deposit_claimable,
     }
 }
 
