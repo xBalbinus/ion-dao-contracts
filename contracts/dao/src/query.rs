@@ -188,9 +188,9 @@ pub fn proposals(
     Ok(ProposalsResponse { proposals: props? })
 }
 
-pub fn proposal_count(deps: Deps) -> u64 {
+pub fn proposal_count(deps: Deps) -> StdResult<u64> {
     let count = PROPOSAL_COUNT.load(deps.storage)?;
-    count
+    Ok(count)
 }
 
 pub fn vote(deps: Deps, proposal_id: u64, voter: String) -> StdResult<VoteResponse> {
@@ -243,7 +243,8 @@ pub fn deposit(deps: Deps, proposal_id: u64, depositor: String) -> StdResult<Dep
     Ok(DepositResponse {
         proposal_id,
         depositor: depositor.to_string(),
-        amount: deposit,
+        amount: deposit.amount,
+        claimed: deposit.claimed,
     })
 }
 
@@ -269,11 +270,12 @@ pub fn deposits(
                 .range(deps.storage, min, max, order)
                 .take(limit)
                 .map(|item| {
-                    let (depositor, amount) = item?;
+                    let (depositor, deposit) = item?;
                     Ok(DepositResponse {
                         proposal_id,
                         depositor: depositor.to_string(),
-                        amount,
+                        amount: deposit.amount,
+                        claimed: deposit.claimed,
                     })
                 })
                 .collect()
@@ -296,7 +298,8 @@ pub fn deposits(
                     Ok(DepositResponse {
                         proposal_id,
                         depositor: depositor.to_string(),
-                        amount: deposit,
+                        amount: deposit.amount,
+                        claimed: deposit.claimed,
                     })
                 })
                 .collect()
@@ -323,7 +326,8 @@ pub fn deposits(
                     Ok(DepositResponse {
                         proposal_id,
                         depositor: depositor.to_string(),
-                        amount: deposit,
+                        amount: deposit.amount,
+                        claimed: deposit.claimed,
                     })
                 })
                 .collect()

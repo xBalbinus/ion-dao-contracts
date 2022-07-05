@@ -1,18 +1,13 @@
 use std::ops::Add;
 
-use cosmwasm_std::CosmosMsg::Bank;
 use cosmwasm_std::{
-    coins, Addr, BankMsg, BlockInfo, Empty, Env, MessageInfo, Order, StdError, StdResult, Storage,
-    Uint128,
+    coins, Addr, BankMsg, BlockInfo, Empty, Env, MessageInfo, StdError, StdResult, Storage, Uint128,
 };
 use cw20::Denom;
 use cw3::{Status, Vote};
-use cw_storage_plus::Bound;
 use cw_utils::{may_pay, Expiration};
 
-use crate::helpers::{
-    duration_to_expiry, get_and_check_limit, get_total_staked_supply, get_voting_power_at_height,
-};
+use crate::helpers::{duration_to_expiry, get_total_staked_supply, get_voting_power_at_height};
 use crate::msg::ProposeMsg;
 use crate::state::{
     next_id, Ballot, Config, Proposal, Votes, BALLOTS, CONFIG, DAO_PAUSED, DEPOSITS, GOV_TOKEN,
@@ -21,7 +16,7 @@ use crate::state::{
 };
 use crate::ContractError;
 
-use super::{CosmosMsg, DepsMut, Response, MAX_LIMIT};
+use super::{DepsMut, Response, MAX_LIMIT};
 
 fn check_paused(storage: &dyn Storage, block: &BlockInfo) -> Result<(), ContractError> {
     let paused = DAO_PAUSED.may_load(storage)?;
@@ -65,13 +60,31 @@ fn create_deposit(
     amount: &Uint128,
 ) -> StdResult<()> {
     // deposit
-    let deposit = DEPOSITS
+    let mut deposit = DEPOSITS
         .may_load(storage, (prop_id, depositor.clone()))?
         .unwrap_or_default();
-    if deposit.is_zero() {
+    if deposit.amount.is_zero() {
         IDX_DEPOSITS_BY_DEPOSITOR.save(storage, (depositor.clone(), prop_id), &Empty {})?;
     }
-    DEPOSITS.save(storage, (prop_id, depositor.clone()), &deposit.add(amount))?;
+
+    deposit.amount += amount;
+
+    DEPOSITS.save(storage, (prop_id, depositor.clone()), &deposit)?;
+
+    Ok(())
+}
+
+fn make_deposit_claimable(
+    storage: &mut dyn Storage,
+    prop_id: u64,
+    proposal: &mut Proposal,
+) -> StdResult<()> {
+    PROPOSALS.update(storage, prop_id, |v| -> StdResult<Proposal> {
+        let mut v = v.unwrap();
+        v.deposit_claimable = true;
+        Ok(v)
+    })?;
+    proposal.deposit_claimable = true;
 
     Ok(())
 }
@@ -96,35 +109,6 @@ fn update_proposal_status(
     IDX_PROPS_BY_STATUS.save(storage, (desired as u8, prop_id), &Empty {})?;
 
     Ok(())
-}
-
-fn proposal_deposit_refund_msgs(
-    storage: &dyn Storage,
-    prop_id: u64,
-    gov_token: impl Into<String> + Clone,
-    start_after: Option<Addr>,
-    limit: Option<u32>,
-) -> StdResult<Vec<CosmosMsg>> {
-    let limit = get_and_check_limit(limit, 200, 100)? as usize;
-    let order = Order::Ascending;
-    let (min, max) = (start_after.map(Bound::<Addr>::exclusive), None);
-
-    // refund all deposits. FIXME: add iteration logic to process refund
-    let deposits: StdResult<Vec<CosmosMsg>> = DEPOSITS
-        .prefix(prop_id)
-        .range(storage, min, max, order)
-        .take(limit)
-        .map(|item| {
-            let (depositor, amount) = item?;
-
-            Ok(CosmosMsg::Bank(BankMsg::Send {
-                to_address: depositor.to_string(),
-                amount: coins(amount.u128(), gov_token.clone()),
-            }))
-        })
-        .collect();
-
-    deposits
 }
 
 pub fn propose(
@@ -175,6 +159,7 @@ pub fn propose(
         total_weight: total_supply,
         total_deposit: received, // initial deposit = received
         deposit_base_amount: cfg.proposal_deposit,
+        deposit_claimable: false,
     };
 
     let mut resp = Response::new();
@@ -183,7 +168,7 @@ pub fn propose(
 
         // refund exceeded amount
         let gap = received - cfg.proposal_deposit;
-        if gap > 0 {
+        if gap > Uint128::zero() {
             resp = resp.add_message(BankMsg::Send {
                 to_address: info.sender.to_string(),
                 amount: coins(gap.u128(), gov_token),
@@ -242,7 +227,7 @@ pub fn deposit(
 
             // refund exceeded amount
             let gap = prop.total_deposit - cfg.proposal_deposit;
-            if gap > 0 {
+            if gap > Uint128::zero() {
                 resp = resp.add_message(BankMsg::Send {
                     to_address: info.sender.to_string(),
                     amount: coins(gap.u128(), gov_token),
@@ -256,6 +241,40 @@ pub fn deposit(
             Ok(resp.add_attribute("result", "pending"))
         }
     }
+}
+
+pub fn claim_deposit(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    prop_id: u64,
+) -> Result<Response, ContractError> {
+    check_paused(deps.storage, &env.block)?;
+
+    let prop = PROPOSALS.load(deps.storage, prop_id)?;
+    if !prop.deposit_claimable {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    let mut deposit = DEPOSITS.load(deps.storage, (prop_id, info.sender.clone()))?;
+    if deposit.claimed {
+        return Err(ContractError::Unauthorized {});
+    }
+    deposit.claimed = true;
+
+    DEPOSITS.save(deps.storage, (prop_id, info.sender.clone()), &deposit)?;
+
+    let gov_token = GOV_TOKEN.load(deps.storage)?;
+
+    Ok(Response::new()
+        .add_message(BankMsg::Send {
+            to_address: info.sender.to_string(),
+            amount: coins(deposit.amount.u128(), gov_token),
+        })
+        .add_attribute("action", "claim_deposit")
+        .add_attribute("sender", info.sender.to_string())
+        .add_attribute("proposal_id", prop_id.to_string())
+        .add_attribute("amount", deposit.amount))
 }
 
 pub fn vote(
@@ -323,14 +342,11 @@ pub fn execute(
 
     check_status(&prop.current_status(&env.block), Status::Passed)?;
     update_proposal_status(deps.storage, prop_id, &mut prop, Status::Executed)?;
+    make_deposit_claimable(deps.storage, prop_id, &mut prop)?;
     prop.update_status(&env.block);
-
-    let gov_token = GOV_TOKEN.load(deps.storage)?;
-    let refunds = proposal_deposit_refund_msgs(deps.storage, prop_id, gov_token, None, None)?;
 
     // Dispatch all proposed messages
     Ok(Response::new()
-        .add_messages(refunds)
         .add_messages(prop.msgs)
         .add_attribute("action", "execute")
         .add_attribute("sender", info.sender)
@@ -380,11 +396,8 @@ pub fn close(
         .add_attribute("proposal_id", prop_id.to_string());
 
     if prev_status == Status::Open && !prop.is_vetoed() {
-        // refund
-        let gov_token = GOV_TOKEN.load(deps.storage)?;
-        let refunds = proposal_deposit_refund_msgs(deps.storage, prop_id, gov_token, None, None)?;
-
-        resp = resp.add_messages(refunds).add_attribute("result", "refund");
+        make_deposit_claimable(deps.storage, prop_id, &mut prop)?;
+        resp = resp.add_attribute("result", "refund");
     } else {
         resp = resp.add_attribute("result", "confiscate")
     }
@@ -498,6 +511,7 @@ pub fn update_token_list(
 
 #[cfg(test)]
 mod test {
+    use crate::state::Deposit;
     use cosmwasm_std::testing::MockStorage;
 
     use super::*;
@@ -581,14 +595,20 @@ mod test {
         super::create_deposit(&mut storage, 1, &depositor, &Uint128::from(10u128)).unwrap();
         assert_eq!(
             DEPOSITS.load(&storage, (1, depositor.clone())).unwrap(),
-            Uint128::from(10u128)
+            Deposit {
+                amount: Uint128::from(10u128),
+                claimed: false
+            },
         );
         assert!(IDX_DEPOSITS_BY_DEPOSITOR.has(&storage, (depositor.clone(), 1)));
 
         super::create_deposit(&mut storage, 1, &depositor, &Uint128::from(10u128)).unwrap();
         assert_eq!(
             DEPOSITS.load(&storage, (1, depositor.clone())).unwrap(),
-            Uint128::from(20u128)
+            Deposit {
+                amount: Uint128::from(20u128),
+                claimed: false
+            },
         );
         assert!(IDX_DEPOSITS_BY_DEPOSITOR.has(&storage, (depositor.clone(), 1)));
     }
@@ -610,46 +630,5 @@ mod test {
 
         assert_eq!(PROPOSALS.load(&storage, 1).unwrap().status, Status::Passed);
         assert_eq!(PROPOSALS.load(&storage, 1).unwrap().proposer, proposer);
-    }
-
-    #[test]
-    fn proposal_deposit_refund_msgs() {
-        let mut storage = MockStorage::default();
-
-        let proposer = Addr::unchecked("proposer");
-        let proposal = Proposal {
-            proposer: proposer.clone(),
-            ..Default::default()
-        };
-
-        super::create_proposal(&mut storage, 1, &proposer, &proposal).unwrap();
-
-        let depositor1 = Addr::unchecked("depositor1");
-        super::create_deposit(&mut storage, 1, &depositor1, &Uint128::from(10u128)).unwrap();
-        let depositor2 = Addr::unchecked("depositor2");
-        super::create_deposit(&mut storage, 1, &depositor2, &Uint128::from(20u128)).unwrap();
-        let depositor3 = Addr::unchecked("depositor3");
-        super::create_deposit(&mut storage, 1, &depositor3, &Uint128::from(30u128)).unwrap();
-
-        let msgs =
-            super::proposal_deposit_refund_msgs(&storage, 1, "gov_token", None, None).unwrap();
-        let asserts: Vec<CosmosMsg> = vec![
-            BankMsg::Send {
-                to_address: "depositor1".to_string(),
-                amount: coins(10u128, "gov_token"),
-            }
-            .into(),
-            BankMsg::Send {
-                to_address: "depositor2".to_string(),
-                amount: coins(20u128, "gov_token"),
-            }
-            .into(),
-            BankMsg::Send {
-                to_address: "depositor3".to_string(),
-                amount: coins(30u128, "gov_token"),
-            }
-            .into(),
-        ];
-        assert_eq!(msgs, asserts)
     }
 }

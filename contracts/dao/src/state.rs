@@ -23,7 +23,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn validate(self) -> Result<(), ContractError> {
+    pub fn validate(&self) -> Result<(), ContractError> {
         match self.voting_period {
             Duration::Height(voting_period_height) => match self.deposit_period {
                 Duration::Height(deposit_period_height) => {
@@ -47,6 +47,12 @@ impl Config {
             },
         }
     }
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug, Default)]
+pub struct Deposit {
+    pub amount: Uint128,
+    pub claimed: bool,
 }
 
 // we cast a ballot with our chosen vote and a given weight
@@ -75,7 +81,7 @@ pub const STAKING_CONTRACT_UNSTAKING_DURATION: Item<Option<Duration>> =
 
 // Multiple-item map
 pub const BALLOTS: Map<(u64, &Addr), Ballot> = Map::new("votes"); // proposal_id => user_address => Ballot
-pub const DEPOSITS: Map<(u64, Addr), Uint128> = Map::new("deposits");
+pub const DEPOSITS: Map<(u64, Addr), Deposit> = Map::new("deposits");
 pub const IDX_DEPOSITS_BY_DEPOSITOR: Map<(Addr, u64), Empty> =
     Map::new("idx_deposits_by_depositor");
 pub const PROPOSALS: Map<u64, Proposal> = Map::new("proposals");
