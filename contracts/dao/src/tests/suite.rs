@@ -403,6 +403,15 @@ impl Suite {
         )
     }
 
+    pub fn claim_deposit(&mut self, claimer: &str, proposal_id: u64) -> AnyResult<AppResponse> {
+        self.app.borrow_mut().execute_contract(
+            Addr::unchecked(claimer),
+            self.dao.clone(),
+            &crate::msg::ExecuteMsg::ClaimDeposit { proposal_id },
+            &[],
+        )
+    }
+
     pub fn vote(&mut self, voter: &str, proposal_id: u64, option: Vote) -> AnyResult<AppResponse> {
         self.app.borrow_mut().execute_contract(
             Addr::unchecked(voter),

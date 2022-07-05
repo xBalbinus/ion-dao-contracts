@@ -54,6 +54,12 @@ pub enum ContractError {
     #[error("Cannot close completed or passed proposals")]
     WrongCloseStatus {},
 
+    #[error("Deposit not claimable")]
+    DepositNotClaimable {},
+
+    #[error("Deposit already claimed")]
+    DepositAlreadyClaimed {},
+
     #[error("Got a submessage reply with unknown id: {id}")]
     UnknownReplyId { id: u64 },
 

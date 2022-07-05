@@ -253,12 +253,12 @@ pub fn claim_deposit(
 
     let prop = PROPOSALS.load(deps.storage, prop_id)?;
     if !prop.deposit_claimable {
-        return Err(ContractError::Unauthorized {});
+        return Err(ContractError::DepositNotClaimable {});
     }
 
     let mut deposit = DEPOSITS.load(deps.storage, (prop_id, info.sender.clone()))?;
     if deposit.claimed {
-        return Err(ContractError::Unauthorized {});
+        return Err(ContractError::DepositAlreadyClaimed {});
     }
     deposit.claimed = true;
 

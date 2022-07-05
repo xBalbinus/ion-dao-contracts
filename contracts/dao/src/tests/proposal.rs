@@ -4,7 +4,9 @@ use cw3::Vote;
 use cw_utils::Expiration;
 
 use crate::state::BlockTime;
-use crate::tests::suite::{SuiteBuilder, DEFAULT_DEPOSIT_PERIOD, DEFAULT_VOTING_PERIOD};
+use crate::tests::suite::{
+    SuiteBuilder, DEFAULT_DEPOSIT_PERIOD, DEFAULT_QUO_DEPOSIT, DEFAULT_VOTING_PERIOD,
+};
 use crate::ContractError;
 use crate::CosmosMsg;
 
@@ -722,5 +724,120 @@ mod close_proposal {
             },
             err.downcast().unwrap()
         )
+    }
+}
+
+mod claim_deposit {
+
+    use super::*;
+
+    fn assert_event_attrs(src: &[Attribute], sender: &str, proposal_id: u64, amount: u128) {
+        assert_eq!(
+            src,
+            &[
+                Attribute::new("action", "claim_deposit"),
+                Attribute::new("sender", sender),
+                Attribute::new("proposal_id", proposal_id.to_string()),
+                Attribute::new("amount", amount.to_string())
+            ]
+        )
+    }
+
+    #[test]
+    fn should_claim_work_after_execution() {
+        let mut suite = SuiteBuilder::new()
+            .with_staked(vec![("owner", 1)])
+            .add_proposal("title", "link", "desc", vec![])
+            .build();
+
+        suite.vote("owner", 1, Vote::Yes).unwrap();
+        suite.app().advance_blocks(DEFAULT_VOTING_PERIOD);
+        suite.execute_proposal("owner", 1).unwrap();
+
+        let resp = suite.claim_deposit("owner", 1).unwrap();
+        assert_event_attrs(resp.custom_attrs(1), "owner", 1, DEFAULT_QUO_DEPOSIT);
+        assert!(suite.check_balance("owner", 100));
+    }
+
+    #[test]
+    fn should_claim_work_after_close() {
+        let mut suite = SuiteBuilder::new()
+            .with_staked(vec![("owner", 1)])
+            .add_proposal("title", "link", "desc", vec![])
+            .build();
+
+        suite.vote("owner", 1, Vote::No).unwrap();
+        suite.app().advance_blocks(DEFAULT_VOTING_PERIOD);
+        suite.close_proposal("owner", 1).unwrap();
+
+        let resp = suite.claim_deposit("owner", 1).unwrap();
+        assert_event_attrs(resp.custom_attrs(1), "owner", 1, DEFAULT_QUO_DEPOSIT);
+        assert!(suite.check_balance("owner", 100));
+    }
+
+    #[test]
+    fn should_fail_to_claim_after_veto() {
+        let mut suite = SuiteBuilder::new()
+            .with_staked(vec![("owner", 1)])
+            .add_proposal("title", "link", "desc", vec![])
+            .build();
+
+        suite.vote("owner", 1, Vote::Veto).unwrap();
+        suite.app().advance_blocks(DEFAULT_VOTING_PERIOD);
+        suite.close_proposal("owner", 1).unwrap();
+
+        let err = suite.claim_deposit("owner", 1).unwrap_err();
+        assert_eq!(
+            ContractError::DepositNotClaimable {},
+            err.downcast().unwrap()
+        );
+    }
+
+    #[test]
+    fn should_fail_to_claim_before_finalize() {
+        let mut suite = SuiteBuilder::new()
+            .with_staked(vec![("owner", 1)])
+            .with_funds(vec![("owner", 200)])
+            .build();
+
+        // 1 = pending
+        suite
+            .propose("owner", "t", "l", "d", vec![], Some(10))
+            .unwrap();
+        // 2 = open
+        suite
+            .propose("owner", "t", "l", "d", vec![], Some(100))
+            .unwrap();
+
+        let err = suite.claim_deposit("owner", 1).unwrap_err();
+        assert_eq!(
+            ContractError::DepositNotClaimable {},
+            err.downcast().unwrap()
+        );
+
+        let err = suite.claim_deposit("owner", 2).unwrap_err();
+        assert_eq!(
+            ContractError::DepositNotClaimable {},
+            err.downcast().unwrap()
+        );
+    }
+
+    #[test]
+    fn should_fail_if_already_claimed() {
+        let mut suite = SuiteBuilder::new()
+            .with_staked(vec![("owner", 1)])
+            .add_proposal("title", "link", "desc", vec![])
+            .build();
+
+        suite.vote("owner", 1, Vote::No).unwrap();
+        suite.app().advance_blocks(DEFAULT_VOTING_PERIOD);
+        suite.close_proposal("owner", 1).unwrap();
+
+        suite.claim_deposit("owner", 1).unwrap();
+        let err = suite.claim_deposit("owner", 1).unwrap_err();
+        assert_eq!(
+            ContractError::DepositAlreadyClaimed {},
+            err.downcast().unwrap()
+        );
     }
 }
