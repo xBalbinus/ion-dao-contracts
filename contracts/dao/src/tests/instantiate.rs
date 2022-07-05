@@ -44,8 +44,8 @@ fn happy_init_msg(stake: Stake) -> InstantiateMsg {
             quorum: Decimal::percent(40),
             veto_threshold: Decimal::percent(33),
         },
-        voting_period: Duration::Height(10),
-        deposit_period: Duration::Height(20),
+        voting_period: Duration::Height(20),
+        deposit_period: Duration::Height(10),
         proposal_deposit_amount: Uint128::new(100),
         proposal_deposit_min_amount: Uint128::new(10),
     }
@@ -188,5 +188,30 @@ fn should_fail_if_threshold_is_invalid() {
             .instantiate_contract(dao_code_id, maker.clone(), case, &[], "new_dao", None)
             .unwrap_err();
         assert_eq!(ContractError::ZeroThreshold {}, err.downcast().unwrap());
+    }
+}
+
+#[test]
+fn should_fail_if_period_is_invalid() {
+    let (mut app, dao_code_id, stake_code_id) = prepare();
+
+    let maker = Addr::unchecked("maker");
+
+    let cases = vec![
+        (Duration::Height(10), Duration::Time(10)),  // fail
+        (Duration::Time(10), Duration::Height(10)),  // fail
+        (Duration::Height(10), Duration::Height(9)), // fail
+        (Duration::Time(10), Duration::Time(9)),     // fail
+    ];
+
+    for (deposit, voting) in cases {
+        let mut init_msg = happy_init_msg(Stake::Code(stake_code_id));
+        init_msg.deposit_period = deposit;
+        init_msg.voting_period = voting;
+
+        let err = app
+            .instantiate_contract(dao_code_id, maker.clone(), &init_msg, &[], "new_dao", None)
+            .unwrap_err();
+        assert_eq!(ContractError::Unauthorized {}, err.downcast().unwrap());
     }
 }

@@ -625,14 +625,11 @@ mod test {
 
         super::create_proposal(&mut storage, 1, &proposer, &proposal).unwrap();
 
-        assert_eq!(
-            PROPOSALS.load(&storage, 1).unwrap().deposit_claimable,
-            false
-        );
+        assert!(!PROPOSALS.load(&storage, 1).unwrap().deposit_claimable);
 
         super::make_deposit_claimable(&mut storage, 1, &mut proposal).unwrap();
 
-        assert_eq!(PROPOSALS.load(&storage, 1).unwrap().deposit_claimable, true);
+        assert!(PROPOSALS.load(&storage, 1).unwrap().deposit_claimable);
     }
 
     #[test]

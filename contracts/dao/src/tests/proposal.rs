@@ -4,7 +4,7 @@ use cw3::Vote;
 use cw_utils::Expiration;
 
 use crate::state::BlockTime;
-use crate::tests::suite::SuiteBuilder;
+use crate::tests::suite::{SuiteBuilder, DEFAULT_DEPOSIT_PERIOD, DEFAULT_VOTING_PERIOD};
 use crate::ContractError;
 use crate::CosmosMsg;
 
@@ -53,10 +53,13 @@ mod propose {
         assert_eq!(prop.status, Status::Open);
         assert_eq!(
             prop.deposit_ends_at,
-            Expiration::AtHeight(block.height + 15)
+            Expiration::AtHeight(block.height + DEFAULT_DEPOSIT_PERIOD)
         );
         assert_eq!(prop.vote_starts_at, block.clone().into());
-        assert_eq!(prop.vote_ends_at, Expiration::AtHeight(block.height + 10));
+        assert_eq!(
+            prop.vote_ends_at,
+            Expiration::AtHeight(block.height + DEFAULT_VOTING_PERIOD)
+        );
         assert_eq!(prop.total_weight, Uint128::new(100));
         assert_eq!(prop.total_deposit, Uint128::new(100));
     }
@@ -78,10 +81,13 @@ mod propose {
         assert_eq!(prop.status, Status::Pending);
         assert_eq!(
             prop.deposit_ends_at,
-            Expiration::AtHeight(block.height + 15)
+            Expiration::AtHeight(block.height + DEFAULT_DEPOSIT_PERIOD)
         );
         assert_eq!(prop.vote_starts_at, BlockTime::default());
-        assert_eq!(prop.vote_ends_at, Expiration::AtHeight(block.height + 25));
+        assert_eq!(
+            prop.vote_ends_at,
+            Expiration::AtHeight(block.height + DEFAULT_DEPOSIT_PERIOD + DEFAULT_VOTING_PERIOD)
+        );
         assert_eq!(prop.total_weight, Uint128::new(100));
         assert_eq!(prop.total_deposit, Uint128::new(10));
     }
@@ -243,7 +249,7 @@ mod deposit {
         assert_eq!(prop.status, Status::Open);
         assert_eq!(prop.total_deposit, Uint128::new(100));
         assert_eq!(prop.vote_starts_at, block.clone().into());
-        assert_eq!(prop.vote_ends_at, Expiration::AtHeight(block.height + 10));
+        assert_eq!(prop.vote_ends_at, Expiration::AtHeight(block.height + 15));
 
         assert!(suite.check_balance("tester0", 80));
         assert!(suite.check_balance("tester1", 20));
@@ -467,7 +473,7 @@ mod vote {
             .add_proposal("title", "link", "desc", vec![])
             .build();
 
-        suite.app().advance_blocks(10); // voting period
+        suite.app().advance_blocks(DEFAULT_VOTING_PERIOD); // voting period
 
         let err = suite.vote("tester0", 1, Vote::Yes).unwrap_err();
         assert_eq!(ContractError::Expired {}, err.downcast().unwrap());
@@ -511,11 +517,11 @@ mod execute_proposal {
             .build();
 
         suite.vote("tester0", 1, Vote::Yes).unwrap();
-        suite.app().advance_blocks(10);
+        suite.app().advance_blocks(DEFAULT_VOTING_PERIOD);
 
         let resp = suite.execute_proposal("owner", 1).unwrap();
         assert_event_attrs(resp.custom_attrs(1), "owner", 1);
-        assert!(suite.check_balance("owner", 100));
+        assert!(suite.query_proposal(1).unwrap().deposit_claimable);
     }
 
     #[test]
@@ -540,7 +546,7 @@ mod execute_proposal {
             )
             .unwrap();
         suite.vote("tester0", 1, Vote::Yes).unwrap();
-        suite.app().advance_blocks(10);
+        suite.app().advance_blocks(DEFAULT_VOTING_PERIOD);
 
         let resp = suite.execute_proposal("owner", 1).unwrap();
         assert_event_attrs(resp.custom_attrs(1), "owner", 1);
@@ -556,7 +562,7 @@ mod execute_proposal {
             .build();
 
         suite.vote("tester0", 1, Vote::Yes).unwrap();
-        suite.app().advance_blocks(10);
+        suite.app().advance_blocks(DEFAULT_DEPOSIT_PERIOD);
 
         let dao = suite.dao.clone();
         suite.pause(dao.as_str(), Expiration::Never {}).unwrap();
@@ -584,7 +590,7 @@ mod execute_proposal {
             .build();
 
         suite.vote("tester0", 1, Vote::No).unwrap();
-        suite.app().advance_blocks(10);
+        suite.app().advance_blocks(DEFAULT_VOTING_PERIOD);
 
         let err = suite.execute_proposal("owner", 1).unwrap_err();
         assert_eq!(
@@ -623,15 +629,15 @@ mod close_proposal {
         suite.vote("tester0", 1, Vote::No).unwrap();
         suite.vote("tester0", 2, Vote::Abstain).unwrap();
         suite.vote("tester1", 2, Vote::No).unwrap();
-        suite.app().advance_blocks(10);
+        suite.app().advance_blocks(DEFAULT_VOTING_PERIOD);
 
         let resp = suite.close_proposal("owner", 1).unwrap();
         assert_event_attrs(resp.custom_attrs(1), "owner", 1, "refund");
-        assert!(suite.check_balance("owner", 100));
+        assert!(suite.query_proposal(1).unwrap().deposit_claimable);
 
         let resp = suite.close_proposal("owner", 2).unwrap();
         assert_event_attrs(resp.custom_attrs(1), "owner", 2, "refund");
-        assert!(suite.check_balance("owner", 200));
+        assert!(suite.query_proposal(2).unwrap().deposit_claimable);
     }
 
     #[test]
@@ -648,7 +654,7 @@ mod close_proposal {
         // vetoed
         suite.vote("tester0", 1, Vote::Veto).unwrap();
 
-        suite.app().advance_blocks(15);
+        suite.app().advance_blocks(DEFAULT_VOTING_PERIOD);
 
         let resp = suite.close_proposal("owner", 1).unwrap();
         assert_event_attrs(resp.custom_attrs(1), "owner", 1, "confiscate");
@@ -667,7 +673,7 @@ mod close_proposal {
             .build();
 
         suite.vote("tester0", 1, Vote::No).unwrap();
-        suite.app().advance_blocks(10);
+        suite.app().advance_blocks(DEFAULT_DEPOSIT_PERIOD);
 
         let dao = suite.dao.clone();
         suite.pause(dao.as_str(), Expiration::Never {}).unwrap();
@@ -684,7 +690,7 @@ mod close_proposal {
             .build();
 
         suite.vote("tester0", 1, Vote::Yes).unwrap();
-        suite.app().advance_blocks(10);
+        suite.app().advance_blocks(DEFAULT_VOTING_PERIOD);
 
         suite.execute_proposal("owner", 1).unwrap();
 
@@ -706,7 +712,7 @@ mod close_proposal {
             .build();
 
         suite.vote("tester0", 1, Vote::Yes).unwrap();
-        suite.app().advance_blocks(10);
+        suite.app().advance_blocks(DEFAULT_VOTING_PERIOD);
 
         let err = suite.close_proposal("abuser", 1).unwrap_err();
         assert_eq!(

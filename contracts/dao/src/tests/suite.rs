@@ -12,6 +12,11 @@ use osmo_bindings_test::OsmosisApp;
 use crate::msg::RangeOrder;
 use crate::state::Config;
 
+pub const DEFAULT_DEPOSIT_PERIOD: u64 = 10;
+pub const DEFAULT_VOTING_PERIOD: u64 = 15;
+pub const DEFAULT_MIN_DEPOSIT: u128 = 10;
+pub const DEFAULT_QUO_DEPOSIT: u128 = 100;
+
 pub fn contract_dao() -> Box<dyn Contract<OsmosisMsg, OsmosisQuery>> {
     let contract = ContractWrapper::new(
         crate::contract::execute,
@@ -65,8 +70,14 @@ impl SuiteBuilder {
                 quorum: Decimal::percent(33),         // 33%
                 veto_threshold: Decimal::percent(33), // 33%
             },
-            periods: (Duration::Height(10), Duration::Height(15)),
-            deposits: (Uint128::new(10), Uint128::new(100)),
+            periods: (
+                Duration::Height(DEFAULT_VOTING_PERIOD),
+                Duration::Height(DEFAULT_DEPOSIT_PERIOD),
+            ),
+            deposits: (
+                Uint128::new(DEFAULT_MIN_DEPOSIT),
+                Uint128::new(DEFAULT_QUO_DEPOSIT),
+            ),
         }
     }
 
