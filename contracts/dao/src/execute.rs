@@ -614,6 +614,28 @@ mod test {
     }
 
     #[test]
+    fn make_deposit_claimable() {
+        let mut storage = MockStorage::default();
+
+        let proposer = Addr::unchecked("proposer");
+        let mut proposal = Proposal {
+            proposer: proposer.clone(),
+            ..Default::default()
+        };
+
+        super::create_proposal(&mut storage, 1, &proposer, &proposal).unwrap();
+
+        assert_eq!(
+            PROPOSALS.load(&storage, 1).unwrap().deposit_claimable,
+            false
+        );
+
+        super::make_deposit_claimable(&mut storage, 1, &mut proposal).unwrap();
+
+        assert_eq!(PROPOSALS.load(&storage, 1).unwrap().deposit_claimable, true);
+    }
+
+    #[test]
     fn update_proposal_status() {
         let mut storage = MockStorage::default();
 
