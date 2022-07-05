@@ -12,7 +12,8 @@ use crate::msg::{
 };
 use crate::state::{
     parse_id, BALLOTS, CONFIG, DEPOSITS, GOV_TOKEN, IDX_DEPOSITS_BY_DEPOSITOR,
-    IDX_PROPS_BY_PROPOSER, IDX_PROPS_BY_STATUS, PROPOSALS, STAKING_CONTRACT, TREASURY_TOKENS,
+    IDX_PROPS_BY_PROPOSER, IDX_PROPS_BY_STATUS, PROPOSALS, PROPOSAL_COUNT, STAKING_CONTRACT,
+    TREASURY_TOKENS,
 };
 use crate::{Deps, QuerierWrapper, DEFAULT_LIMIT, MAX_LIMIT};
 
@@ -188,9 +189,8 @@ pub fn proposals(
 }
 
 pub fn proposal_count(deps: Deps) -> u64 {
-    PROPOSALS
-        .keys(deps.storage, None, None, Order::Descending)
-        .count() as u64
+    let count = PROPOSAL_COUNT.load(deps.storage)?;
+    count
 }
 
 pub fn vote(deps: Deps, proposal_id: u64, voter: String) -> StdResult<VoteResponse> {

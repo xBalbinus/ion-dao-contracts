@@ -7,7 +7,7 @@ use cw_utils::parse_reply_instantiate_data;
 use crate::error::ContractError;
 use crate::helpers::get_config;
 use crate::msg::{ExecuteMsg, GovToken, InstantiateMsg, MigrateMsg, QueryMsg, VoteMsg};
-use crate::state::{Config, CONFIG, GOV_TOKEN, STAKING_CONTRACT, TREASURY_TOKENS};
+use crate::state::{Config, CONFIG, GOV_TOKEN, PROPOSAL_COUNT, STAKING_CONTRACT, TREASURY_TOKENS};
 use crate::{Deps, DepsMut, Response, SubMsg};
 
 // Version info for migration info
@@ -38,6 +38,7 @@ pub fn instantiate(
         proposal_min_deposit: msg.proposal_deposit_min_amount,
     };
     CONFIG.save(deps.storage, &cfg)?;
+    PROPOSAL_COUNT.save(deps.storage, &0)?;
 
     match msg.gov_token {
         GovToken::Create {
