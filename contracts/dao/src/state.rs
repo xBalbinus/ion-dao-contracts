@@ -1,5 +1,6 @@
 use std::convert::TryInto;
 
+use crate::ContractError;
 use cosmwasm_std::{Addr, Empty, StdError, StdResult, Storage, Uint128};
 use cw3::Vote;
 use cw_storage_plus::{Item, Map};
@@ -19,6 +20,33 @@ pub struct Config {
     pub deposit_period: Duration,
     pub proposal_deposit: Uint128,
     pub proposal_min_deposit: Uint128,
+}
+
+impl Config {
+    pub fn validate(self) -> Result<(), ContractError> {
+        match self.voting_period {
+            Duration::Height(voting_period_height) => match self.deposit_period {
+                Duration::Height(deposit_period_height) => {
+                    if voting_period_height < deposit_period_height {
+                        Err(ContractError::Unauthorized {})
+                    } else {
+                        Ok(())
+                    }
+                }
+                Duration::Time(_) => Err(ContractError::Unauthorized {}),
+            },
+            Duration::Time(voting_period_time) => match self.deposit_period {
+                Duration::Height(_) => Err(ContractError::Unauthorized {}),
+                Duration::Time(deposit_period_time) => {
+                    if voting_period_time < deposit_period_time {
+                        Err(ContractError::Unauthorized {})
+                    } else {
+                        Ok(())
+                    }
+                }
+            },
+        }
+    }
 }
 
 // we cast a ballot with our chosen vote and a given weight

@@ -37,6 +37,8 @@ pub fn instantiate(
         proposal_deposit: msg.proposal_deposit_amount,
         proposal_min_deposit: msg.proposal_deposit_min_amount,
     };
+    cfg.validate()?;
+
     CONFIG.save(deps.storage, &cfg)?;
     PROPOSAL_COUNT.save(deps.storage, &0)?;
 
