@@ -67,7 +67,7 @@ fn create_deposit(
         IDX_DEPOSITS_BY_DEPOSITOR.save(storage, (depositor.clone(), prop_id), &Empty {})?;
     }
 
-    deposit.amount += amount;
+    deposit.amount = deposit.amount.checked_add(*amount)?;
 
     DEPOSITS.save(storage, (prop_id, depositor.clone()), &deposit)?;
 
