@@ -24,27 +24,23 @@ pub struct Config {
 
 impl Config {
     pub fn validate(&self) -> Result<(), ContractError> {
-        match self.voting_period {
-            Duration::Height(voting_period_height) => match self.deposit_period {
-                Duration::Height(deposit_period_height) => {
-                    if voting_period_height < deposit_period_height {
-                        Err(ContractError::Unauthorized {})
-                    } else {
-                        Ok(())
-                    }
+        match (self.voting_period, self.deposit_period) {
+            (Duration::Height(voting_period_height), Duration::Height(deposit_period_height)) => {
+                if voting_period_height < deposit_period_height {
+                    Err(ContractError::Unauthorized {})
+                } else {
+                    Ok(())
                 }
-                Duration::Time(_) => Err(ContractError::Unauthorized {}),
-            },
-            Duration::Time(voting_period_time) => match self.deposit_period {
-                Duration::Height(_) => Err(ContractError::Unauthorized {}),
-                Duration::Time(deposit_period_time) => {
-                    if voting_period_time < deposit_period_time {
-                        Err(ContractError::Unauthorized {})
-                    } else {
-                        Ok(())
-                    }
+            }
+            (Duration::Time(voting_period_time), Duration::Time(deposit_period_time)) => {
+                if voting_period_time < deposit_period_time {
+                    Err(ContractError::Unauthorized {})
+                } else {
+                    Ok(())
                 }
-            },
+            }
+            _ => Err(ContractError::Unauthorized {}),
+        }
         }
     }
 }
