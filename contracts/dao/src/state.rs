@@ -41,7 +41,6 @@ impl Config {
             }
             _ => Err(ContractError::Unauthorized {}),
         }
-        }
     }
 }
 
