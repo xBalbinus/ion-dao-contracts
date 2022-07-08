@@ -1,4 +1,5 @@
 use cosmwasm_std::StdError;
+use cw_utils::PaymentError;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -23,6 +24,9 @@ pub enum ContractError {
 
     #[error("Unauthorized")]
     Unauthorized {},
+
+    #[error("{0}")]
+    Payment(#[from] PaymentError),
 
     #[error("Proposal is not open")]
     NotOpen {},

@@ -122,8 +122,7 @@ pub fn propose(
     let cfg = CONFIG.load(deps.storage)?;
     let gov_token = GOV_TOKEN.load(deps.storage)?;
 
-    let received = may_pay(&info, gov_token.as_str())
-        .map_err(|e| ContractError::Std(StdError::generic_err(format!("{:?}", e))))?;
+    let received = may_pay(&info, gov_token.as_str())?;
     if received < cfg.proposal_min_deposit {
         return Err(ContractError::Unauthorized {});
     }
@@ -199,8 +198,7 @@ pub fn deposit(
     let cfg = CONFIG.load(deps.storage)?;
     let gov_token = GOV_TOKEN.load(deps.storage)?;
 
-    let received = may_pay(&info, gov_token.as_str())
-        .map_err(|e| ContractError::Std(StdError::generic_err(format!("{:?}", e))))?;
+    let received = may_pay(&info, gov_token.as_str())?;
     if received.is_zero() {
         return Err(ContractError::Unauthorized {});
     }
