@@ -422,7 +422,7 @@ mod vote {
                 .iter()
                 .enumerate()
                 .map(|(j, _)| (format!("tester{}", j), (4 + i - j as u64) % 4))
-                .map(|(p, v)| (p, votes.get(v as usize).unwrap().clone()))
+                .map(|(p, v)| (p, *votes.get(v as usize).unwrap()))
                 .collect::<Vec<(String, Vote)>>();
 
             let resp = suite.query_votes(id, None, None, None).unwrap();
@@ -438,7 +438,6 @@ mod vote {
 
 mod deposit {
     use super::*;
-    use crate::msg::DepositsQueryOption;
 
     fn setup_deposit_state(_: &str, suite: &mut Suite) {
         /***

@@ -68,6 +68,9 @@ pub enum ExecuteMsg {
     Deposit {
         proposal_id: u64,
     },
+    ClaimDeposit {
+        proposal_id: u64,
+    },
     /// Vote on an open proposal
     Vote(VoteMsg),
     /// Execute a passed proposal
@@ -386,6 +389,8 @@ where
     pub total_votes: Uint128,
     pub total_weight: Uint128,
     pub total_deposit: Uint128,
+
+    pub deposit_claimable: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
@@ -420,6 +425,7 @@ pub struct DepositResponse {
     pub proposal_id: u64,
     pub depositor: String,
     pub amount: Uint128,
+    pub claimed: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]

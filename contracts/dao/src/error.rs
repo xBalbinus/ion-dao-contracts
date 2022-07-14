@@ -1,4 +1,5 @@
 use cosmwasm_std::StdError;
+use cw_utils::PaymentError;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -18,11 +19,17 @@ pub enum ContractError {
     #[error("Not possible to reach required (passing) threshold")]
     UnreachableThreshold {},
 
+    #[error("Invalid voting / deposit period")]
+    InvalidPeriod {},
+
     #[error("Cw20 contract invalid address '{addr}'")]
     InvalidCw20 { addr: String },
 
     #[error("Unauthorized")]
     Unauthorized {},
+
+    #[error("{0}")]
+    Payment(#[from] PaymentError),
 
     #[error("Proposal is not open")]
     NotOpen {},
@@ -53,6 +60,12 @@ pub enum ContractError {
 
     #[error("Cannot close completed or passed proposals")]
     WrongCloseStatus {},
+
+    #[error("Deposit not claimable")]
+    DepositNotClaimable {},
+
+    #[error("Deposit already claimed")]
+    DepositAlreadyClaimed {},
 
     #[error("Got a submessage reply with unknown id: {id}")]
     UnknownReplyId { id: u64 },
