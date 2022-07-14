@@ -18,12 +18,16 @@
       "type": "object",
       "required": [
         "amount",
+        "claimed",
         "depositor",
         "proposal_id"
       ],
       "properties": {
         "amount": {
           "$ref": "#/definitions/Uint128"
+        },
+        "claimed": {
+          "type": "boolean"
         },
         "depositor": {
           "type": "string"

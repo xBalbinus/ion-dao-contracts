@@ -4,6 +4,7 @@
   "type": "object",
   "required": [
     "deposit_base_amount",
+    "deposit_claimable",
     "deposit_ends_at",
     "description",
     "link",
@@ -22,6 +23,9 @@
   "properties": {
     "deposit_base_amount": {
       "$ref": "#/definitions/Uint128"
+    },
+    "deposit_claimable": {
+      "type": "boolean"
     },
     "deposit_ends_at": {
       "$ref": "#/definitions/Expiration"

@@ -38,6 +38,28 @@
       "additionalProperties": false
     },
     {
+      "type": "object",
+      "required": [
+        "claim_deposit"
+      ],
+      "properties": {
+        "claim_deposit": {
+          "type": "object",
+          "required": [
+            "proposal_id"
+          ],
+          "properties": {
+            "proposal_id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    {
       "description": "Vote on an open proposal",
       "type": "object",
       "required": [
