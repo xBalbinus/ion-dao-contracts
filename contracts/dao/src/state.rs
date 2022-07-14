@@ -1,5 +1,6 @@
 use std::convert::TryInto;
 
+use crate::ContractError;
 use cosmwasm_std::{Addr, Empty, StdError, StdResult, Storage, Uint128};
 use cw3::Vote;
 use cw_storage_plus::{Item, Map};
@@ -19,6 +20,34 @@ pub struct Config {
     pub deposit_period: Duration,
     pub proposal_deposit: Uint128,
     pub proposal_min_deposit: Uint128,
+}
+
+impl Config {
+    pub fn validate(&self) -> Result<(), ContractError> {
+        match (self.voting_period, self.deposit_period) {
+            (Duration::Height(voting_period_height), Duration::Height(deposit_period_height)) => {
+                if voting_period_height < deposit_period_height {
+                    Err(ContractError::InvalidPeriod {})
+                } else {
+                    Ok(())
+                }
+            }
+            (Duration::Time(voting_period_time), Duration::Time(deposit_period_time)) => {
+                if voting_period_time < deposit_period_time {
+                    Err(ContractError::InvalidPeriod {})
+                } else {
+                    Ok(())
+                }
+            }
+            _ => Err(ContractError::InvalidPeriod {}),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug, Default)]
+pub struct Deposit {
+    pub amount: Uint128,
+    pub claimed: bool,
 }
 
 // we cast a ballot with our chosen vote and a given weight
@@ -47,7 +76,7 @@ pub const STAKING_CONTRACT_UNSTAKING_DURATION: Item<Option<Duration>> =
 
 // Multiple-item map
 pub const BALLOTS: Map<(u64, &Addr), Ballot> = Map::new("votes"); // proposal_id => user_address => Ballot
-pub const DEPOSITS: Map<(u64, Addr), Uint128> = Map::new("deposits");
+pub const DEPOSITS: Map<(u64, Addr), Deposit> = Map::new("deposits");
 pub const IDX_DEPOSITS_BY_DEPOSITOR: Map<(Addr, u64), Empty> =
     Map::new("idx_deposits_by_depositor");
 pub const PROPOSALS: Map<u64, Proposal> = Map::new("proposals");

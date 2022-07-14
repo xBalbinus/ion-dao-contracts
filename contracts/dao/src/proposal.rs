@@ -101,6 +101,7 @@ pub struct Proposal {
     /// Amount of the native governance token required for voting
     pub total_deposit: Uint128,
     pub deposit_base_amount: Uint128,
+    pub deposit_claimable: bool,
 }
 
 impl Default for Proposal {
@@ -121,6 +122,7 @@ impl Default for Proposal {
             votes: Default::default(),
             total_deposit: Default::default(),
             deposit_base_amount: Default::default(),
+            deposit_claimable: false,
         }
     }
 }
@@ -205,8 +207,8 @@ fn votes_needed(weight: Uint128, percentage: Decimal) -> Uint128 {
 mod test {
     use std::ops::Add;
 
-    use cosmwasm_std::Env;
     use cosmwasm_std::testing::mock_env;
+    use cosmwasm_std::Env;
 
     use super::*;
 

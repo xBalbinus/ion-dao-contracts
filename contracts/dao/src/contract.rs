@@ -7,7 +7,7 @@ use cw_utils::parse_reply_instantiate_data;
 use crate::error::ContractError;
 use crate::helpers::get_config;
 use crate::msg::{ExecuteMsg, GovToken, InstantiateMsg, MigrateMsg, QueryMsg, VoteMsg};
-use crate::state::{Config, CONFIG, GOV_TOKEN, STAKING_CONTRACT, TREASURY_TOKENS};
+use crate::state::{Config, CONFIG, GOV_TOKEN, PROPOSAL_COUNT, STAKING_CONTRACT, TREASURY_TOKENS};
 use crate::{Deps, DepsMut, Response, SubMsg};
 
 // Version info for migration info
@@ -37,7 +37,10 @@ pub fn instantiate(
         proposal_deposit: msg.proposal_deposit_amount,
         proposal_min_deposit: msg.proposal_deposit_min_amount,
     };
+    cfg.validate()?;
+
     CONFIG.save(deps.storage, &cfg)?;
+    PROPOSAL_COUNT.save(deps.storage, &0)?;
 
     match msg.gov_token {
         GovToken::Create {
@@ -102,6 +105,9 @@ pub fn execute(
     match msg {
         Propose(propose_msg) => execute::propose(deps, env, info, propose_msg),
         Deposit { proposal_id } => execute::deposit(deps, env, info, proposal_id),
+        ExecuteMsg::ClaimDeposit { proposal_id } => {
+            execute::claim_deposit(deps, env, info, proposal_id)
+        }
         Vote(VoteMsg { proposal_id, vote }) => execute::vote(deps, env, info, proposal_id, vote),
         Execute { proposal_id } => execute::execute(deps, env, info, proposal_id),
         Close { proposal_id } => execute::close(deps, env, info, proposal_id),
@@ -137,7 +143,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             limit,
             order,
         } => to_binary(&query::proposals(deps, env, query, start, limit, order)?),
-        ProposalCount {} => to_binary(&query::proposal_count(deps)),
+        ProposalCount {} => to_binary(&query::proposal_count(deps)?),
 
         Vote { proposal_id, voter } => to_binary(&query::vote(deps, proposal_id, voter)?),
         Votes {

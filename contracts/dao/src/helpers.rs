@@ -1,14 +1,14 @@
 use cosmwasm_std::{
-    Addr, BlockInfo, CosmosMsg, Decimal, Env, MessageInfo, QuerierWrapper, StdError, StdResult,
-    to_binary, Uint128, WasmMsg,
+    to_binary, Addr, BlockInfo, CosmosMsg, Decimal, Env, MessageInfo, QuerierWrapper, StdError,
+    StdResult, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
 use cw_utils::{Duration, Expiration};
 use osmo_bindings::{OsmosisMsg, OsmosisQuery};
 
-use crate::ContractError;
 use crate::msg::ProposalResponse;
 use crate::state::{BlockTime, Proposal, STAKING_CONTRACT};
+use crate::ContractError;
 
 /// type aliases
 pub type Response = cosmwasm_std::Response<OsmosisMsg>;
@@ -118,7 +118,7 @@ pub fn proposal_to_response(
         title: prop.title,
         link: prop.link,
         description: prop.description,
-        proposer: prop.proposer.to_string(),
+        proposer: prop.proposer,
         msgs: prop.msgs,
         status,
 
@@ -133,6 +133,8 @@ pub fn proposal_to_response(
         total_votes,
         total_weight,
         total_deposit: prop.total_deposit,
+
+        deposit_claimable: prop.deposit_claimable,
     }
 }
 

@@ -4,7 +4,6 @@ use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, NativeBalance};
 use osmo_bindings::OsmosisMsg;
 
-use crate::{DEFAULT_LIMIT, Deps, MAX_LIMIT, QuerierWrapper};
 use crate::helpers::{get_and_check_limit, proposal_to_response};
 use crate::msg::{
     ConfigResponse, DepositResponse, DepositsQueryOption, DepositsResponse, ProposalResponse,
@@ -12,9 +11,11 @@ use crate::msg::{
     VoteInfo, VoteResponse, VotesResponse,
 };
 use crate::state::{
-    BALLOTS, CONFIG, DEPOSITS, GOV_TOKEN, IDX_DEPOSITS_BY_DEPOSITOR, IDX_PROPS_BY_PROPOSER,
-    IDX_PROPS_BY_STATUS, parse_id, PROPOSALS, STAKING_CONTRACT, TREASURY_TOKENS,
+    parse_id, BALLOTS, CONFIG, DEPOSITS, GOV_TOKEN, IDX_DEPOSITS_BY_DEPOSITOR,
+    IDX_PROPS_BY_PROPOSER, IDX_PROPS_BY_STATUS, PROPOSALS, PROPOSAL_COUNT, STAKING_CONTRACT,
+    TREASURY_TOKENS,
 };
+use crate::{Deps, QuerierWrapper, DEFAULT_LIMIT, MAX_LIMIT};
 
 fn query_balance_with_asset_type(
     querier: QuerierWrapper,
@@ -187,10 +188,9 @@ pub fn proposals(
     Ok(ProposalsResponse { proposals: props? })
 }
 
-pub fn proposal_count(deps: Deps) -> u64 {
-    PROPOSALS
-        .keys(deps.storage, None, None, Order::Descending)
-        .count() as u64
+pub fn proposal_count(deps: Deps) -> StdResult<u64> {
+    let count = PROPOSAL_COUNT.load(deps.storage)?;
+    Ok(count)
 }
 
 pub fn vote(deps: Deps, proposal_id: u64, voter: String) -> StdResult<VoteResponse> {
@@ -243,7 +243,8 @@ pub fn deposit(deps: Deps, proposal_id: u64, depositor: String) -> StdResult<Dep
     Ok(DepositResponse {
         proposal_id,
         depositor: depositor.to_string(),
-        amount: deposit,
+        amount: deposit.amount,
+        claimed: deposit.claimed,
     })
 }
 
@@ -269,11 +270,12 @@ pub fn deposits(
                 .range(deps.storage, min, max, order)
                 .take(limit)
                 .map(|item| {
-                    let (depositor, amount) = item?;
+                    let (depositor, deposit) = item?;
                     Ok(DepositResponse {
                         proposal_id,
                         depositor: depositor.to_string(),
-                        amount,
+                        amount: deposit.amount,
+                        claimed: deposit.claimed,
                     })
                 })
                 .collect()
@@ -296,7 +298,8 @@ pub fn deposits(
                     Ok(DepositResponse {
                         proposal_id,
                         depositor: depositor.to_string(),
-                        amount: deposit,
+                        amount: deposit.amount,
+                        claimed: deposit.claimed,
                     })
                 })
                 .collect()
@@ -323,7 +326,8 @@ pub fn deposits(
                     Ok(DepositResponse {
                         proposal_id,
                         depositor: depositor.to_string(),
-                        amount: deposit,
+                        amount: deposit.amount,
+                        claimed: deposit.claimed,
                     })
                 })
                 .collect()
