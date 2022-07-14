@@ -3,7 +3,7 @@ import { join } from "path";
 
 import Config from "./config";
 
-const CONTRACTS = ["ion_dao", "ion_stake"];
+const CONTRACTS = ["ion_dao-aarch64", "ion_stake-aarch64"];
 
 async function main() {
   const cfg = await Config.new();

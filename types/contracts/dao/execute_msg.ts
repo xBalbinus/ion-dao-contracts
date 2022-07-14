@@ -1,4 +1,11 @@
-import {Addr, Config, CosmosMsgFor_OsmosisMsg, Denom, Expiration, Vote,} from "./shared-types";
+import {
+  Addr,
+  Config,
+  CosmosMsgFor_OsmosisMsg,
+  Denom,
+  Expiration,
+  Vote,
+} from "./shared-types";
 
 export type ExecuteMsg =
   | {

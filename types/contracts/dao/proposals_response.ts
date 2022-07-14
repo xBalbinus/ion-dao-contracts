@@ -1,4 +1,13 @@
-import {BlockTime, CosmosMsgFor_Empty, Decimal, Expiration, Status, Threshold, Uint128, Votes,} from "./shared-types";
+import {
+  BlockTime,
+  CosmosMsgFor_Empty,
+  Decimal,
+  Expiration,
+  Status,
+  Threshold,
+  Uint128,
+  Votes,
+} from "./shared-types";
 
 export interface ProposalsResponse {
   proposals: ProposalResponseFor_Empty[];

@@ -1,4 +1,4 @@
-import {DepositResponse} from "./shared-types";
+import { DepositResponse } from "./shared-types";
 
 export interface DepositsResponse {
   deposits: DepositResponse[];

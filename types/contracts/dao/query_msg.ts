@@ -1,4 +1,11 @@
-import {Addr, Denom, Proposal_1, Status, Vote_1, Votes_1,} from "./shared-types";
+import {
+  Addr,
+  Denom,
+  Proposal_1,
+  Status,
+  Votes_1,
+  Vote_1,
+} from "./shared-types";
 
 export type QueryMsg =
   | GetConfig
