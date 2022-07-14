@@ -15,6 +15,7 @@ fn main() {
     export_schema_with_title(&schema_for!(msg::InstantiateMsg), &out_dir, "InitMsg");
     export_schema_with_title(&schema_for!(msg::ExecuteMsg), &out_dir, "ExecuteMsg");
     export_schema_with_title(&schema_for!(msg::QueryMsg), &out_dir, "QueryMsg");
+    export_schema_with_title(&schema_for!(msg::RangeOrder), &out_dir, "RangeOrder");
 
     export_schema_with_title(&schema_for!(state::Config), &out_dir, "Config");
     export_schema_with_title(&schema_for!(state::Proposal), &out_dir, "Proposal");

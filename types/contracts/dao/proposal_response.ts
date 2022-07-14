@@ -1,4 +1,5 @@
 import {
+  Addr,
   BlockTime,
   CosmosMsgFor_Empty,
   Decimal,
@@ -13,12 +14,13 @@ import {
  * Note, if you are storing custom messages in the proposal, the querier needs to know what possible custom message types those are in order to parse the response
  */
 export interface ProposalResponse {
+  deposit_claimable: boolean;
   deposit_ends_at: Expiration;
   description: string;
   id: number;
   link: string;
   msgs: CosmosMsgFor_Empty[];
-  proposer: string;
+  proposer: Addr;
   quorum: Decimal;
   status: Status;
   submitted_at: BlockTime;

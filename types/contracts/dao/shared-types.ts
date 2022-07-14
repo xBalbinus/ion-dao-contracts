@@ -104,6 +104,7 @@ export interface Threshold {
 export interface DepositResponse {
   [k: string]: unknown;
   amount: Uint128;
+  claimed: boolean;
   depositor: string;
   proposal_id: number;
 }
@@ -473,6 +474,7 @@ export interface Votes_1 {
 export interface Proposal {
   [k: string]: unknown;
   deposit_base_amount: Uint128;
+  deposit_claimable: boolean;
   deposit_ends_at: Expiration;
   /**
    * Proposal Description
@@ -534,6 +536,7 @@ export interface Proposal_1 {
     [k: string]: unknown;
   };
 }
+export type RangeOrder = "asc" | "desc";
 /**
  * Returns the vote (opinion as well as weight counted) as well as the address of the voter who submitted it
  */
