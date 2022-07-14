@@ -18,6 +18,12 @@ export type ExecuteMsg =
       };
     }
   | {
+      claim_deposit: {
+        proposal_id: number;
+        [k: string]: unknown;
+      };
+    }
+  | {
       vote: VoteMsg;
     }
   | {

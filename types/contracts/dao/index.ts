@@ -14,6 +14,8 @@ export * from "./proposal_response";
 // export * from "./proposal";
 export * from "./proposals_response";
 export * from "./query_msg";
+// dedup emptied this file
+// export * from "./range_order";
 export * from "./shared-types";
 // dedup emptied this file
 // export * from "./threshold";

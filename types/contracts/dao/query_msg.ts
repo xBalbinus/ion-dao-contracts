@@ -2,6 +2,7 @@ import {
   Addr,
   Denom,
   Proposal_1,
+  RangeOrder,
   Status,
   Votes_1,
   Vote_1,
@@ -18,7 +19,6 @@ export type QueryMsg =
   | Votes_1
   | Deposit
   | Deposits;
-export type RangeOrder = "asc" | "desc";
 export type ProposalsQueryOption =
   | {
       find_by_status: {
