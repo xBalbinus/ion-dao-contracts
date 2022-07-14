@@ -1,4 +1,13 @@
-import {BlockTime, CosmosMsgFor_Empty, Decimal, Expiration, Status, Threshold, Uint128, Votes,} from "./shared-types";
+import {
+  BlockTime,
+  CosmosMsgFor_Empty,
+  Decimal,
+  Expiration,
+  Status,
+  Threshold,
+  Uint128,
+  Votes,
+} from "./shared-types";
 
 /**
  * Note, if you are storing custom messages in the proposal, the querier needs to know what possible custom message types those are in order to parse the response
