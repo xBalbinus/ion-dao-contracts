@@ -27,19 +27,19 @@ impl Config {
         match (self.voting_period, self.deposit_period) {
             (Duration::Height(voting_period_height), Duration::Height(deposit_period_height)) => {
                 if voting_period_height < deposit_period_height {
-                    Err(ContractError::Unauthorized {})
+                    Err(ContractError::InvalidPeriod {})
                 } else {
                     Ok(())
                 }
             }
             (Duration::Time(voting_period_time), Duration::Time(deposit_period_time)) => {
                 if voting_period_time < deposit_period_time {
-                    Err(ContractError::Unauthorized {})
+                    Err(ContractError::InvalidPeriod {})
                 } else {
                     Ok(())
                 }
             }
-            _ => Err(ContractError::Unauthorized {}),
+            _ => Err(ContractError::InvalidPeriod {}),
         }
     }
 }

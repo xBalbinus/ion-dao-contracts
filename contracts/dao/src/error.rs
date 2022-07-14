@@ -19,6 +19,9 @@ pub enum ContractError {
     #[error("Not possible to reach required (passing) threshold")]
     UnreachableThreshold {},
 
+    #[error("Invalid voting / deposit period")]
+    InvalidPeriod {},
+
     #[error("Cw20 contract invalid address '{addr}'")]
     InvalidCw20 { addr: String },
 
