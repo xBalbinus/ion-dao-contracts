@@ -19,24 +19,36 @@ async function main() {
   );
 
   const codes = require(join(__dirname, "1_upload")) as UploadResult;
+  const preInit = require(join(
+    __dirname,
+    "2_instantiate"
+  )) as InstantiateResult;
 
   // instantiate
   const { contractAddress: daoAddress, transactionHash } =
     await cfg.cosmwasm.instantiate(
       account.address,
-      codes.ion_dao,
+      codes["ion_dao-aarch64"],
       {
         name: "ION DAO",
         description: "DAO of the ION holders",
-        gov_token: {
-          denom: "uion",
-          label: "ION staking contract for governance",
-          stake_contract_code_id: codes.ion_stake,
-          unstaking_duration: { time: 3600 },
-        },
+        gov_token: preInit["ion_stake-aarch64"]
+          ? {
+              reuse: {
+                stake_contract: preInit["ion_stake-aarch64"],
+              },
+            }
+          : {
+              create: {
+                denom: "uion",
+                label: "ION staking contract for governance",
+                stake_contract_code_id: codes["ion_stake-aarch64"],
+                unstaking_duration: { time: 3600 },
+              },
+            },
         threshold: { quorum: "0.3", threshold: "0.5", veto_threshold: "0.3" },
         deposit_period: { time: 600 },
-        voting_period: { time: 600 },
+        voting_period: { time: 800 },
         proposal_deposit_amount: "100",
         proposal_deposit_min_amount: "50",
       } as dao.InitMsg,
@@ -50,7 +62,7 @@ async function main() {
     daoAddress,
     {
       get_config: {},
-    } as dao.QueryMsg
+    }
   );
 
   const stakeAddress = configResp.staking_contract;
@@ -59,8 +71,8 @@ async function main() {
     join(__dirname, "2_instantiate.json"),
     JSON.stringify(
       {
-        ion_dao: daoAddress,
-        ion_stake: stakeAddress,
+        "ion_dao-aarch64": daoAddress,
+        "ion_stake-aarch64": stakeAddress,
       } as InstantiateResult,
       null,
       2
