@@ -1,0 +1,8 @@
+title: Test Proposal
+description: |
+            Test Description
+deposit: 500000000uosmo
+code:
+    repo: https://github.com/many-things/ion-dao-contracts
+    rust_flags: -C link-arg=-s
+    roptimizer: workspace-optimizer:0.12.6
