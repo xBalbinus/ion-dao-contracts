@@ -1,0 +1,2 @@
+8af84588ed32925dfe57d070113d93fe54bf7ea4ac6c894c547c8bbfe2cbbac5  target/wasm32-unknown-unknown/release/ion_dao.wasm
+1db4e0d89c7347d02dbc59e11b53d40dd67fd6869b4bbe4c728085eeaae2d114  target/wasm32-unknown-unknown/release/ion_stake.wasm
